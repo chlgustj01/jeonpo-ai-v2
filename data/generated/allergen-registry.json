@@ -1,0 +1,587 @@
+[
+  {
+    "_meta": {
+      "biologicalCategory": "legume",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🥜",
+    "id": "peanut",
+    "labels": {
+      "en": "Peanut",
+      "es": "Maní",
+      "ja": "ピーナッツ",
+      "ko": "땅콩",
+      "vi": "Đậu phộng",
+      "zh": "花生"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "tree_nut",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🪵",
+    "id": "walnut",
+    "labels": {
+      "en": "Walnut",
+      "es": "Nuez",
+      "ja": "クルミ",
+      "ko": "호두",
+      "vi": "Quả óc chó",
+      "zh": "核桃"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "tree_nut",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🌲",
+    "id": "pinenut",
+    "labels": {
+      "en": "Pine nut",
+      "es": "Piñón",
+      "ja": "松の実",
+      "ko": "잣",
+      "vi": "Hạt thông",
+      "zh": "松子"
+    },
+    "legacyIds": [
+      "pineneut"
+    ]
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "gluten_cereal",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🌾",
+    "id": "wheat",
+    "labels": {
+      "en": "Wheat",
+      "es": "Trigo",
+      "ja": "小麦",
+      "ko": "밀",
+      "vi": "Lúa mì",
+      "zh": "小麦"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "pseudocereal",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🥣",
+    "id": "buckwheat",
+    "labels": {
+      "en": "Buckwheat",
+      "es": "Alforfón",
+      "ja": "そば",
+      "ko": "메밀",
+      "vi": "Kiều mạch",
+      "zh": "荞麦"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "egg",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🥚",
+    "id": "egg",
+    "labels": {
+      "en": "Egg",
+      "es": "Huevo",
+      "ja": "卵",
+      "ko": "계란",
+      "vi": "Trứng",
+      "zh": "鸡蛋"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "dairy",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🥛",
+    "id": "milk",
+    "labels": {
+      "en": "Milk",
+      "es": "Leche",
+      "ja": "牛乳",
+      "ko": "우유",
+      "vi": "Sữa",
+      "zh": "牛奶"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "crustacean",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🦐",
+    "id": "shrimp",
+    "labels": {
+      "en": "Shrimp",
+      "es": "Camarón",
+      "ja": "エビ",
+      "ko": "새우",
+      "vi": "Tôm",
+      "zh": "虾"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "crustacean",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🦀",
+    "id": "crab",
+    "labels": {
+      "en": "Crab",
+      "es": "Cangrejo",
+      "ja": "カニ",
+      "ko": "게",
+      "vi": "Cua",
+      "zh": "螃蟹"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "mollusk_cephalopod",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🦑",
+    "id": "squid",
+    "labels": {
+      "en": "Squid",
+      "es": "Calamar",
+      "ja": "イカ",
+      "ko": "오징어",
+      "vi": "Mực",
+      "zh": "鱿鱼"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "fish",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🐟",
+    "id": "mackerel",
+    "labels": {
+      "en": "Mackerel",
+      "es": "Caballa",
+      "ja": "サバ",
+      "ko": "고등어",
+      "vi": "Cá thu",
+      "zh": "鲭鱼"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "mollusk_bivalve",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🦪",
+    "id": "shellfish",
+    "labels": {
+      "en": "Shellfish",
+      "es": "Mariscos",
+      "ja": "貝類",
+      "ko": "조개류",
+      "vi": "Nghêu sò",
+      "zh": "贝类"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "fish",
+      "evidenceRefs": [
+        "EV-US-FDA-SESAME",
+        "EV-EU-1169-2011",
+        "EV-DEMO-HACKATHON"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "US-FDA-FALCPA-FASTER",
+          "status": "mandatory"
+        },
+        {
+          "standardId": "EU-1169-2011",
+          "status": "mandatory"
+        },
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "not_listed"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🐠",
+    "id": "fish",
+    "labels": {
+      "en": "Fish",
+      "es": "Pescado",
+      "ja": "魚",
+      "ko": "생선",
+      "vi": "Cá",
+      "zh": "鱼"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "legume",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🫘",
+    "id": "soybean",
+    "labels": {
+      "en": "Soybean",
+      "es": "Soya",
+      "ja": "大豆",
+      "ko": "대두",
+      "vi": "Đậu nành",
+      "zh": "大豆"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "meat",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🐖",
+    "id": "pork",
+    "labels": {
+      "en": "Pork",
+      "es": "Cerdo",
+      "ja": "豚肉",
+      "ko": "돼지고기",
+      "vi": "Thịt lợn",
+      "zh": "猪肉"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "meat",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🐂",
+    "id": "beef",
+    "labels": {
+      "en": "Beef",
+      "es": "Res",
+      "ja": "牛肉",
+      "ko": "소고기",
+      "vi": "Thịt bò",
+      "zh": "牛肉"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "meat",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🐓",
+    "id": "chicken",
+    "labels": {
+      "en": "Chicken",
+      "es": "Pollo",
+      "ja": "鶏肉",
+      "ko": "닭고기",
+      "vi": "Thịt gà",
+      "zh": "鸡肉"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "seed_oil",
+      "evidenceRefs": [
+        "EV-US-FDA-SESAME",
+        "EV-EU-1169-2011",
+        "EV-CA-HEALTHCANADA",
+        "EV-AUNZ-FSANZ"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "US-FDA-FALCPA-FASTER",
+          "status": "mandatory"
+        },
+        {
+          "standardId": "EU-1169-2011",
+          "status": "mandatory"
+        },
+        {
+          "standardId": "UK-FIR",
+          "status": "mandatory"
+        },
+        {
+          "standardId": "CA-HC-2024",
+          "status": "mandatory"
+        },
+        {
+          "standardId": "AU-NZ-FSANZ-1.2.3",
+          "status": "mandatory"
+        },
+        {
+          "standardId": "JP-CAA-2023",
+          "status": "recommended"
+        },
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "not_listed"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🫙",
+    "id": "sesame",
+    "labels": {
+      "en": "Sesame",
+      "es": "Sésamo",
+      "ja": "ごま",
+      "ko": "참깨",
+      "vi": "Mè",
+      "zh": "芝麻"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "fruit",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🍑",
+    "id": "peach",
+    "labels": {
+      "en": "Peach",
+      "es": "Melocotón",
+      "ja": "桃",
+      "ko": "복숭아",
+      "vi": "Đào",
+      "zh": "桃子"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "fruit_vegetable",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🍅",
+    "id": "tomato",
+    "labels": {
+      "en": "Tomato",
+      "es": "Tomate",
+      "ja": "トマト",
+      "ko": "토마토",
+      "vi": "Cà chua",
+      "zh": "西红柿"
+    },
+    "legacyIds": []
+  },
+  {
+    "_meta": {
+      "biologicalCategory": "additive",
+      "evidenceRefs": [
+        "EV-KR-MFDS-2021"
+      ],
+      "regulatoryRefs": [
+        {
+          "standardId": "KR-MFDS-2021",
+          "status": "mandatory"
+        }
+      ],
+      "reviewStatus": "reviewed"
+    },
+    "icon": "🧪",
+    "id": "sulfites",
+    "labels": {
+      "en": "Sulfites",
+      "es": "Sulfitos",
+      "ja": "亜硫酸塩",
+      "ko": "아황산류",
+      "vi": "Chất sulfit",
+      "zh": "亚硫酸盐"
+    },
+    "legacyIds": []
+  }
+]

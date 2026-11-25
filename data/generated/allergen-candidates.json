@@ -1,0 +1,534 @@
+[
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "vegetable",
+    "evidenceRefs": [
+      "EV-EU-1169-2011"
+    ],
+    "icon": "🥬",
+    "id": "celery",
+    "labels": {
+      "en": "Celery",
+      "es": "Apio",
+      "ja": "セロリ",
+      "ko": "셀러리",
+      "vi": "Cần tây",
+      "zh": "芹菜"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "EU-1169-2011",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "UK-FIR",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "AU-NZ-FSANZ-1.2.3",
+        "status": "not_listed"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "condiment_seed",
+    "evidenceRefs": [
+      "EV-EU-1169-2011",
+      "EV-CA-HEALTHCANADA"
+    ],
+    "icon": "🌭",
+    "id": "mustard",
+    "labels": {
+      "en": "Mustard",
+      "es": "Mostaza",
+      "ja": "からし",
+      "ko": "겨자",
+      "vi": "Mù tạt",
+      "zh": "芥末"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "EU-1169-2011",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "UK-FIR",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "CA-HC-2024",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "AU-NZ-FSANZ-1.2.3",
+        "status": "not_listed"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "legume",
+    "evidenceRefs": [
+      "EV-EU-1169-2011",
+      "EV-AUNZ-FSANZ"
+    ],
+    "icon": "🫛",
+    "id": "lupin",
+    "labels": {
+      "en": "Lupin",
+      "es": "Altramuz",
+      "ja": "ルピナス豆",
+      "ko": "루핀(루핀콩)",
+      "vi": "Đậu lupin",
+      "zh": "羽扇豆"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "EU-1169-2011",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "UK-FIR",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "AU-NZ-FSANZ-1.2.3",
+        "status": "mandatory"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "tree_nut",
+    "evidenceRefs": [
+      "EV-US-FDA-SESAME",
+      "EV-JP-CAA-KURUMI"
+    ],
+    "icon": "🌰",
+    "id": "almond",
+    "labels": {
+      "en": "Almond",
+      "es": "Almendra",
+      "ja": "アーモンド",
+      "ko": "아몬드",
+      "vi": "Hạnh nhân",
+      "zh": "杏仁"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "US-FDA-FALCPA-FASTER",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "EU-1169-2011",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "CA-HC-2024",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "recommended"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "tree_nut",
+    "evidenceRefs": [
+      "EV-JP-CAA-KURUMI"
+    ],
+    "icon": "🌰",
+    "id": "cashew",
+    "labels": {
+      "en": "Cashew",
+      "es": "Anacardo",
+      "ja": "カシューナッツ",
+      "ko": "캐슈넛",
+      "vi": "Hạt điều",
+      "zh": "腰果"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "US-FDA-FALCPA-FASTER",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "EU-1169-2011",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "recommended"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "tree_nut",
+    "evidenceRefs": [
+      "EV-US-FDA-SESAME",
+      "EV-EU-1169-2011"
+    ],
+    "icon": "🌰",
+    "id": "hazelnut",
+    "labels": {
+      "en": "Hazelnut",
+      "es": "Avellana",
+      "ja": "ヘーゼルナッツ",
+      "ko": "헤이즐넛",
+      "vi": "Hạt phỉ",
+      "zh": "榛子"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "US-FDA-FALCPA-FASTER",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "EU-1169-2011",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "not_listed"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "tree_nut",
+    "evidenceRefs": [
+      "EV-US-FDA-SESAME",
+      "EV-EU-1169-2011"
+    ],
+    "icon": "🌰",
+    "id": "pistachio",
+    "labels": {
+      "en": "Pistachio",
+      "es": "Pistacho",
+      "ja": "ピスタチオ",
+      "ko": "피스타치오",
+      "vi": "Hạt dẻ cười",
+      "zh": "开心果"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "US-FDA-FALCPA-FASTER",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "EU-1169-2011",
+        "status": "mandatory"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "tree_nut",
+    "evidenceRefs": [
+      "EV-EU-1169-2011"
+    ],
+    "icon": "🌰",
+    "id": "pecan",
+    "labels": {
+      "en": "Pecan",
+      "es": "Pacana",
+      "ja": "ピーカンナッツ",
+      "ko": "피칸",
+      "vi": "Hạt pecan",
+      "zh": "山核桃"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "US-FDA-FALCPA-FASTER",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "EU-1169-2011",
+        "status": "mandatory"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "tree_nut",
+    "evidenceRefs": [
+      "EV-EU-1169-2011"
+    ],
+    "icon": "🌰",
+    "id": "macadamia",
+    "labels": {
+      "en": "Macadamia",
+      "es": "Macadamia",
+      "ja": "マカダミアナッツ",
+      "ko": "마카다미아",
+      "vi": "Hạt mắc ca",
+      "zh": "夏威夷果"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "US-FDA-FALCPA-FASTER",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "EU-1169-2011",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "unconfirmed"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "tree_nut",
+    "evidenceRefs": [
+      "EV-EU-1169-2011"
+    ],
+    "icon": "🌰",
+    "id": "brazilnut",
+    "labels": {
+      "en": "Brazil nut",
+      "es": "Nuez de Brasil",
+      "ja": "ブラジルナッツ",
+      "ko": "브라질너트",
+      "vi": "Hạt dẻ Brazil",
+      "zh": "巴西坚果"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "US-FDA-FALCPA-FASTER",
+        "status": "mandatory"
+      },
+      {
+        "standardId": "EU-1169-2011",
+        "status": "mandatory"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "fruit",
+    "evidenceRefs": [
+      "EV-JP-CAA-KURUMI",
+      "EV-KR-EPI-FRUIT"
+    ],
+    "icon": "🥝",
+    "id": "kiwi",
+    "labels": {
+      "en": "Kiwi fruit",
+      "es": "Kiwi",
+      "ja": "キウイフルーツ",
+      "ko": "키위",
+      "vi": "Kiwi",
+      "zh": "猕猴桃"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "recommended"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "fruit",
+    "evidenceRefs": [
+      "EV-JP-CAA-KURUMI"
+    ],
+    "icon": "🍌",
+    "id": "banana",
+    "labels": {
+      "en": "Banana",
+      "es": "Plátano",
+      "ja": "バナナ",
+      "ko": "바나나",
+      "vi": "Chuối",
+      "zh": "香蕉"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "recommended"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "fruit",
+    "evidenceRefs": [
+      "EV-JP-CAA-KURUMI"
+    ],
+    "icon": "🍎",
+    "id": "apple",
+    "labels": {
+      "en": "Apple",
+      "es": "Manzana",
+      "ja": "りんご",
+      "ko": "사과",
+      "vi": "Táo",
+      "zh": "苹果"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "recommended"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "fruit",
+    "evidenceRefs": [
+      "EV-JP-CAA-KURUMI"
+    ],
+    "icon": "🍊",
+    "id": "orange",
+    "labels": {
+      "en": "Orange",
+      "es": "Naranja",
+      "ja": "オレンジ",
+      "ko": "오렌지",
+      "vi": "Cam",
+      "zh": "橙子"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "recommended"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "animal_protein_additive",
+    "evidenceRefs": [
+      "EV-JP-CAA-KURUMI"
+    ],
+    "icon": "🍮",
+    "id": "gelatin",
+    "labels": {
+      "en": "Gelatin",
+      "es": "Gelatina",
+      "ja": "ゼラチン",
+      "ko": "젤라틴",
+      "vi": "Gelatin",
+      "zh": "明胶"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "recommended"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "fish",
+    "evidenceRefs": [
+      "EV-JP-CAA-KURUMI"
+    ],
+    "icon": "🐟",
+    "id": "salmon",
+    "labels": {
+      "en": "Salmon",
+      "es": "Salmón",
+      "ja": "さけ",
+      "ko": "연어",
+      "vi": "Cá hồi",
+      "zh": "鲑鱼"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "recommended"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "fish_roe",
+    "evidenceRefs": [
+      "EV-JP-CAA-KURUMI"
+    ],
+    "icon": "🍣",
+    "id": "salmon_roe",
+    "labels": {
+      "en": "Salmon roe",
+      "es": "Hueva de salmón",
+      "ja": "いくら",
+      "ko": "연어알(이쿠라)",
+      "vi": "Trứng cá hồi",
+      "zh": "鲑鱼子"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "recommended"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  },
+  {
+    "autoApplyToRiskJudgment": false,
+    "biologicalCategory": "root_vegetable",
+    "evidenceRefs": [
+      "EV-JP-CAA-KURUMI"
+    ],
+    "icon": "🍠",
+    "id": "yam",
+    "labels": {
+      "en": "Yam",
+      "es": "Ñame",
+      "ja": "やまいも",
+      "ko": "마(참마)",
+      "vi": "Khoai mỡ",
+      "zh": "山药"
+    },
+    "notice": "이 성분은 해외 규제 근거는 확인되었으나 아직 서비스의 활성 알레르기 목록(shared/allergens.js)에 등록되지 않았습니다. 위험도 자동 판정에 쓰이지 않습니다.",
+    "regulatoryRefs": [
+      {
+        "standardId": "JP-CAA-2023",
+        "status": "recommended"
+      }
+    ],
+    "reviewStatus": "reviewed_as_candidate"
+  }
+]

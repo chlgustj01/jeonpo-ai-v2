@@ -1,0 +1,192 @@
+[
+  {
+    "citationOnly": true,
+    "id": "EV-KR-MFDS-2020",
+    "licenseConfirmed": true,
+    "publishedDate": "2020-09-09",
+    "reliability": "primary_legal_text",
+    "title": "식품 등의 표시·광고에 관한 법률 시행규칙 [별표2] <개정 2020.9.9>",
+    "type": "regulatory",
+    "url": "https://www.law.go.kr/flDownload.do?flSeq=76612343"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-MFDS-2021",
+    "licenseConfirmed": true,
+    "publishedDate": "2021-08-24",
+    "reliability": "primary_legal_text",
+    "title": "식품 등의 표시·광고에 관한 법률 시행규칙 [별표2] <개정 2021.8.24>",
+    "type": "regulatory",
+    "url": "https://www.law.go.kr/flDownload.do?flSeq=136815085"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-FSK-INFOGRAPHIC",
+    "licenseConfirmed": true,
+    "publishedDate": "2022-09-01",
+    "reliability": "secondary_summary",
+    "title": "식품안전나라 알레르기 유발 식품 표시 안내(인포그래픽)",
+    "type": "regulatory",
+    "url": "https://www.foodsafetykorea.go.kr/portal/board/boardDetail.do?menu_no=3120&bbs_no=bbs001&ntctxt_no=1091412"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-NONGMIN-2025",
+    "licenseConfirmed": true,
+    "publishedDate": "2025-08-29",
+    "reliability": "secondary_summary",
+    "title": "식품 표시 개편 보도(푸드QR, \"22종\" 표현 사용하나 본문은 19개만 나열)",
+    "type": "regulatory",
+    "url": "https://www.nongmin.com/article/20250829500247"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-US-FDA-SESAME",
+    "licenseConfirmed": true,
+    "publishedDate": "2023-01-01",
+    "reliability": "secondary_summary",
+    "title": "FASTER Act — Sesame as 9th Major Food Allergen",
+    "type": "regulatory",
+    "url": "https://www.fda.gov/food/buy-store-serve-safe-food/food-allergies-what-you-need-know"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-EU-1169-2011",
+    "licenseConfirmed": true,
+    "publishedDate": "2011-10-25",
+    "reliability": "secondary_summary",
+    "title": "Regulation (EU) No 1169/2011 Annex II",
+    "type": "regulatory",
+    "url": "https://eur-lex.europa.eu/eli/reg/2011/1169/oj/eng"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-UK-FSA",
+    "licenseConfirmed": true,
+    "publishedDate": "2014-12-13",
+    "reliability": "secondary_summary",
+    "title": "Food Standards Agency — Allergen guidance for food businesses",
+    "type": "regulatory",
+    "url": "https://www.food.gov.uk/business-guidance/allergen-guidance-for-food-businesses"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-JP-CAA-KURUMI",
+    "licenseConfirmed": true,
+    "publishedDate": "2023-03-09",
+    "reliability": "secondary_summary",
+    "title": "消費者庁 くるみアレルギー表示義務化改正",
+    "type": "regulatory",
+    "url": "https://www.caa.go.jp/policies/policy/food_labeling/information/research/2023/"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-CA-HEALTHCANADA",
+    "licenseConfirmed": true,
+    "publishedDate": "2009-09",
+    "reliability": "secondary_summary",
+    "title": "Health Canada — Sesame / Mustard, A priority food allergen",
+    "type": "regulatory",
+    "url": "https://www.canada.ca/en/health-canada/services/food-nutrition/reports-publications/food-safety/sesame-priority-food-allergen.html"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-AUNZ-FSANZ",
+    "licenseConfirmed": true,
+    "publishedDate": "2021-02-25",
+    "reliability": "secondary_summary",
+    "title": "FSANZ Food Standards Code Standard 1.2.3 (PEAL)",
+    "type": "regulatory",
+    "url": "https://www.foodstandards.gov.au/sites/default/files/consumer/foodallergies/Documents/W1070%20final%20report.pdf"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-CODEX-HISTORY",
+    "licenseConfirmed": true,
+    "publishedDate": "2024-12",
+    "reliability": "secondary_summary",
+    "title": "FAO/WHO Ad hoc Joint Expert Consultation on Risk Assessment of Food Allergens, Part 1~4",
+    "type": "regulatory",
+    "url": "https://openknowledge.fao.org/handle/20.500.14283/cc2946en"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-FAOWHO-PART2",
+    "licenseConfirmed": true,
+    "publishedDate": "2022",
+    "reliability": "secondary_summary",
+    "title": "FAO/WHO Risk Assessment of Food Allergens Part 2 — Reference Doses",
+    "type": "regulatory",
+    "url": "https://openknowledge.fao.org/handle/20.500.14283/cc2946en"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-FOODON",
+    "licenseConfirmed": true,
+    "publishedDate": "2018",
+    "reliability": "secondary_summary",
+    "title": "FoodOn: a harmonized food ontology",
+    "type": "public_api",
+    "url": "https://www.nature.com/articles/s41538-018-0032-6"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-FSK-COOKRCP",
+    "licenseConfirmed": true,
+    "publishedDate": "2026-11-25",
+    "reliability": "secondary_summary",
+    "title": "식품안전나라 조리식품의 레시피 DB (COOKRCP01) API 명세",
+    "type": "public_api",
+    "url": "https://www.foodsafetykorea.go.kr/api/openApiInfo.do?svc_no=COOKRCP01"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-DATAGOKR-RAWMAT",
+    "licenseConfirmed": true,
+    "publishedDate": "2016-12-31",
+    "reliability": "secondary_summary",
+    "title": "공공데이터포털 — 식품의약품안전처_식품 원재료 정보",
+    "type": "public_api",
+    "url": "https://www.data.go.kr/data/15058665/openapi.do"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-EPI-2026-AAIR",
+    "licenseConfirmed": true,
+    "publishedDate": "2026-05-08",
+    "reliability": "primary_legal_text",
+    "title": "Prevalence of Immediate-Type Food Allergy and Food-Induced Anaphylaxis in Korean Schoolchildren",
+    "type": "peer_reviewed_study",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13226871/"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-EPI-FRUIT",
+    "licenseConfirmed": true,
+    "publishedDate": "2026-11-25",
+    "reliability": "secondary_summary",
+    "title": "한국 소아 과일 알레르기 역학(복숭아 최다 보고)",
+    "type": "peer_reviewed_study",
+    "url": "https://synapse.koreamed.org/articles/1051533"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-EPI-RETROSPECTIVE",
+    "licenseConfirmed": true,
+    "publishedDate": "2020",
+    "reliability": "secondary_summary",
+    "title": "전연령 중증도별 식품알레르기의 주요 원인: 단일기관 최근 10년 후향적 조사 연구",
+    "type": "peer_reviewed_study",
+    "url": "https://aard.or.kr/search.php?where=aview&id=10.4168%2Faard.2020.8.2.80"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-DEMO-HACKATHON",
+    "licenseConfirmed": false,
+    "publishedDate": "2026-07-04",
+    "reliability": "unverified",
+    "title": "해커톤 원본 index.html locations[] 데모 데이터",
+    "type": "demo_internal",
+    "url": "(내부 파일, 외부 URL 없음)"
+  }
+]

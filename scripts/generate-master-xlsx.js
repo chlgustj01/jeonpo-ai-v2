@@ -274,12 +274,16 @@ const ALL_ALLERGENS_FOR_SHEET = [
 // ---------------------------------------------------------------------
 // 02. Allergen_Aliases — IMP-12 선행 작업을 위한 최소 시드(보수적으로만 작성)
 // ---------------------------------------------------------------------
+// [IMP-18C에서 수정] 과거엔 여기서 01_Allergens.legacyIds를 02_Allergen_Aliases에도
+// "미러링"해서 넣었었다. 그런데 legacyIds는 이미 01_Allergens 시트 자체가
+// 보관하는 공식 마이그레이션 매핑이고, 02_Allergen_Aliases는 "그 외의"
+// 동의어/표기 변형을 위한 별도 공간이다 — 같은 사실(pinenut의 과거 id는
+// pineneut이다)을 두 시트에 중복 기록하면, 검증 파이프라인이 "같은
+// allergenId에 동의어가 중복 등록됨"으로 잡아낸다(의도된 탐지 — 실제로
+// scripts/validate_food_knowledge.py를 처음 돌렸을 때 이 중복을 정확히
+// 찾아냈다). 그래서 legacyIds는 01_Allergens에만 두고, 02는 "그 외의"
+// 동의어만 갖도록 역할을 분리했다.
 const ALLERGEN_ALIASES = [];
-ACTIVE_ALLERGENS.forEach((a) => {
-  (a.legacyIds || []).forEach((legacy) => {
-    ALLERGEN_ALIASES.push({ allergenId: a.id, alias: legacy, lang: 'id_legacy', reviewStatus: 'reviewed', evidenceType: 'regulatory', notes: 'IMP-11 legacyIds(이미 검증된 마이그레이션 매핑)' });
-  });
-});
 // 영어 표기 변형 — 명백한 동일 의미 변형만 보수적으로 추가(동의어 추론 아님)
 const CONSERVATIVE_EN_ALIASES = [
   ['peanut', 'peanuts'], ['peanut', 'groundnut'],
@@ -316,7 +320,17 @@ const COMPOSITE_INGREDIENTS = [
   { id: 'mustard_sauce', ko: '머스터드', en: 'Mustard sauce', allergens: [['mustard', 'IS_ALLERGEN', 'high']], note: '겨자씨 자체(후보 알레르겐, 위 01시트 candidate 참고)' },
   { id: 'sesame_oil', ko: '참기름', en: 'Sesame oil', allergens: [['sesame', 'IS_ALLERGEN', 'high']], note: '참깨 압착유 — 사실상 참깨 그 자체' },
   { id: 'peanut_sauce', ko: '땅콩 소스', en: 'Peanut sauce', allergens: [['peanut', 'IS_ALLERGEN', 'high']], note: '땅콩 베이스' },
-  { id: 'bakery_general', ko: '빵 및 제과류(일반)', en: 'Bread & bakery products (general)', allergens: [['wheat', 'CONTAINS_AS_RAW_MATERIAL', 'high'], ['egg', 'TYPICAL_RECIPE_INCLUSION', 'medium'], ['milk', 'TYPICAL_RECIPE_INCLUSION', 'medium'], ['peanut', 'UNCONFIRMED', 'low'], ['tree_nut_general', 'UNCONFIRMED', 'low']], note: '"제과류"는 매우 넓은 카테고리 — 제품명/제조사별 실제 확인 없이는 계란·우유 외 세부 성분 확정 불가. 공장 교차오염(땅콩/견과류)은 매장 확인 없이는 OBSERVED로 올리지 않음' },
+  // [IMP-18C에서 수정] 원래 이 줄엔 'tree_nut_general'이라는 id로 "견과류
+  // 일반"을 표시하려 했으나, 01_Allergens에 그런 id가 실제로 등록된 적이
+  // 없어 참조 무결성 검증(BROKEN_REFERENCE)에 정확히 걸렸다. "견과류
+  // 일반"이라는 새 알레르겐 카테고리를 지금 근거 없이 새로 만드는 것은
+  // 금지사항("근거자료를 확인하지 않은 식재료 관계 추가")에 해당하므로,
+  // 새 id를 만들어 통과시키는 대신 이 추정 자체를 제거했다 — 땅콩(peanut)
+  // UNCONFIRMED 한 줄만 남긴다(walnut/pinenut 같은 실제 등록된 개별
+  // 견과류 id로 대체하는 것도 가능하지만, 어떤 견과류가 실제로 쓰이는지
+  // 모르는 상태에서 특정 견과류 id를 임의로 지정하는 것 역시 같은 문제라
+  // 일단 보류한다).
+  { id: 'bakery_general', ko: '빵 및 제과류(일반)', en: 'Bread & bakery products (general)', allergens: [['wheat', 'CONTAINS_AS_RAW_MATERIAL', 'high'], ['egg', 'TYPICAL_RECIPE_INCLUSION', 'medium'], ['milk', 'TYPICAL_RECIPE_INCLUSION', 'medium'], ['peanut', 'UNCONFIRMED', 'low']], note: '"제과류"는 매우 넓은 카테고리 — 제품명/제조사별 실제 확인 없이는 계란·우유 외 세부 성분 확정 불가. 공장의 견과류 일반 교차오염 가능성은 "어떤 견과류인지"조차 특정할 근거가 없어 이번엔 등록하지 않음(검증 필요로 남김, IMP-18B 다음 조사 대상)' },
 ];
 
 const INGREDIENTS_SHEET_ROWS = [];
@@ -437,6 +451,7 @@ const EPIDEMIOLOGY_ROWS = [
 // ---------------------------------------------------------------------
 const CHANGELOG_ROWS = [
   { version: '1.0', date: TODAY, author: 'Claude(세션) + 사용자 검토 대기', summary: 'IMP-18B 최초 구축 — 11시트, Allergens 39(active 21 + candidate 18), 근거자료 20건, 복합식재료 19종, 역학연구 3건(완전검증 1/부분검증 2), 데모 음식 14종 재사용. Restaurant_Verification/Dish_Ingredients는 실제 확인 데이터가 없어 의도적으로 placeholder/보류 처리.' },
+  { version: '1.1', date: TODAY, author: 'Claude(세션) + IMP-18C 검증 파이프라인', summary: 'IMP-18C 검증 파이프라인(scripts/validate_food_knowledge.py)이 최초 실행에서 실제 데이터 결함 3종을 발견해 수정: (1) ia_0042가 01_Allergens에 없는 가상의 id \'tree_nut_general\'을 참조(BROKEN_REFERENCE) → 근거 없는 카테고리를 임의로 만들지 않고 해당 UNCONFIRMED 행 자체를 삭제, (2) 02_Allergen_Aliases가 01_Allergens.legacyIds를 그대로 중복 미러링해 동의어 충돌(DUPLICATE_ALIAS) 발생 → legacyIds는 01에만, 02는 그 외 동의어만 갖도록 역할 분리, (3) 복합식재료의 IS_ALLERGEN(정의상 자명) 관계 4건이 evidenceId 없이 reviewed로 표시된 것은 검증기의 평가 규칙을 "definitional 관계는 외부 근거 불필요"로 보정해 해소(데이터 자체는 그대로 유지). 재실행 결과 Error 0건.' },
 ];
 
 // ---------------------------------------------------------------------

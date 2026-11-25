@@ -1,0 +1,21 @@
+{
+  "dataVersion": "aa4d25550e99a06f",
+  "generatedAt": "2026-11-25T12:36:32+00:00",
+  "recordCounts": {
+    "allergen-aliases.json": 0,
+    "allergen-candidates.json": 18,
+    "allergen-registry.json": 21,
+    "dishes-demo.json": 28,
+    "evidence-sources.json": 19,
+    "ingredient-knowledge.json": 64,
+    "regulatory-standards.json": 8
+  },
+  "schemaVersion": "1.0.0",
+  "sourceHash": "8efa12dcc89d7a793ace4833500b04d6e18de52e52f2e24c1549d3f4ed4496a0",
+  "sourceWorkbook": "Food_Allergen_Master.xlsx",
+  "validationStatus": {
+    "errors": 0,
+    "status": "passed",
+    "warnings": 0
+  }
+}

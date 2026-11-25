@@ -1,0 +1,441 @@
+{
+  "confirmedRelations": [
+    {
+      "allergenId": "shrimp",
+      "confidence": "high",
+      "evidenceId": "",
+      "id": "ia_0011",
+      "ingredientId": "saeujeot",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "mustard",
+      "confidence": "high",
+      "evidenceId": "",
+      "id": "ia_0035",
+      "ingredientId": "mustard_sauce",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "sesame",
+      "confidence": "high",
+      "evidenceId": "",
+      "id": "ia_0036",
+      "ingredientId": "sesame_oil",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "peanut",
+      "confidence": "high",
+      "evidenceId": "",
+      "id": "ia_0037",
+      "ingredientId": "peanut_sauce",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "peanut",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0042",
+      "ingredientId": "raw_peanut",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "walnut",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0043",
+      "ingredientId": "raw_walnut",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "pinenut",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0044",
+      "ingredientId": "raw_pinenut",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "wheat",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0045",
+      "ingredientId": "raw_wheat",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "buckwheat",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0046",
+      "ingredientId": "raw_buckwheat",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "egg",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0047",
+      "ingredientId": "raw_egg",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "milk",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0048",
+      "ingredientId": "raw_milk",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "shrimp",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0049",
+      "ingredientId": "raw_shrimp",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "crab",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0050",
+      "ingredientId": "raw_crab",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "squid",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0051",
+      "ingredientId": "raw_squid",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "mackerel",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0052",
+      "ingredientId": "raw_mackerel",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "shellfish",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0053",
+      "ingredientId": "raw_shellfish",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "fish",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0054",
+      "ingredientId": "raw_fish",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "soybean",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0055",
+      "ingredientId": "raw_soybean",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "pork",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0056",
+      "ingredientId": "raw_pork",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "beef",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0057",
+      "ingredientId": "raw_beef",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "chicken",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0058",
+      "ingredientId": "raw_chicken",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "sesame",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0059",
+      "ingredientId": "raw_sesame",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "peach",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0060",
+      "ingredientId": "raw_peach",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "tomato",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0061",
+      "ingredientId": "raw_tomato",
+      "relationType": "IS_ALLERGEN"
+    },
+    {
+      "allergenId": "sulfites",
+      "confidence": "high",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "id": "ia_0062",
+      "ingredientId": "raw_sulfites",
+      "relationType": "IS_ALLERGEN"
+    }
+  ],
+  "ingredients": [
+    {
+      "id": "ganjang",
+      "kind": "composite",
+      "nameEn": "Soy sauce",
+      "nameKo": "간장"
+    },
+    {
+      "id": "doenjang",
+      "kind": "composite",
+      "nameEn": "Fermented soybean paste",
+      "nameKo": "된장"
+    },
+    {
+      "id": "gochujang",
+      "kind": "composite",
+      "nameEn": "Fermented chili paste",
+      "nameKo": "고추장"
+    },
+    {
+      "id": "ssamjang",
+      "kind": "composite",
+      "nameEn": "Ssamjang (mixed dipping sauce)",
+      "nameKo": "쌈장"
+    },
+    {
+      "id": "aekjeot",
+      "kind": "composite",
+      "nameEn": "Fish/shrimp sauce",
+      "nameKo": "액젓"
+    },
+    {
+      "id": "saeujeot",
+      "kind": "composite",
+      "nameEn": "Salted shrimp",
+      "nameKo": "새우젓"
+    },
+    {
+      "id": "kimchi",
+      "kind": "composite",
+      "nameEn": "Kimchi",
+      "nameKo": "김치"
+    },
+    {
+      "id": "eomuk",
+      "kind": "composite",
+      "nameEn": "Fish cake",
+      "nameKo": "어묵"
+    },
+    {
+      "id": "crab_stick",
+      "kind": "composite",
+      "nameEn": "Imitation crab (surimi)",
+      "nameKo": "맛살(게맛살)"
+    },
+    {
+      "id": "yuksu",
+      "kind": "composite",
+      "nameEn": "Broth/stock",
+      "nameKo": "육수(국물 베이스)"
+    },
+    {
+      "id": "curry_sauce",
+      "kind": "composite",
+      "nameEn": "Curry sauce (Japanese/Korean style roux)",
+      "nameKo": "카레 소스"
+    },
+    {
+      "id": "mayonnaise",
+      "kind": "composite",
+      "nameEn": "Mayonnaise",
+      "nameKo": "마요네즈"
+    },
+    {
+      "id": "salad_dressing",
+      "kind": "composite",
+      "nameEn": "Salad dressing (general)",
+      "nameKo": "샐러드 드레싱(일반)"
+    },
+    {
+      "id": "oyster_sauce",
+      "kind": "composite",
+      "nameEn": "Oyster sauce",
+      "nameKo": "굴소스"
+    },
+    {
+      "id": "mustard_sauce",
+      "kind": "composite",
+      "nameEn": "Mustard sauce",
+      "nameKo": "머스터드"
+    },
+    {
+      "id": "sesame_oil",
+      "kind": "composite",
+      "nameEn": "Sesame oil",
+      "nameKo": "참기름"
+    },
+    {
+      "id": "peanut_sauce",
+      "kind": "composite",
+      "nameEn": "Peanut sauce",
+      "nameKo": "땅콩 소스"
+    },
+    {
+      "id": "bakery_general",
+      "kind": "composite",
+      "nameEn": "Bread & bakery products (general)",
+      "nameKo": "빵 및 제과류(일반)"
+    },
+    {
+      "id": "raw_peanut",
+      "kind": "single",
+      "nameEn": "Peanut",
+      "nameKo": "땅콩"
+    },
+    {
+      "id": "raw_walnut",
+      "kind": "single",
+      "nameEn": "Walnut",
+      "nameKo": "호두"
+    },
+    {
+      "id": "raw_pinenut",
+      "kind": "single",
+      "nameEn": "Pine nut",
+      "nameKo": "잣"
+    },
+    {
+      "id": "raw_wheat",
+      "kind": "single",
+      "nameEn": "Wheat",
+      "nameKo": "밀"
+    },
+    {
+      "id": "raw_buckwheat",
+      "kind": "single",
+      "nameEn": "Buckwheat",
+      "nameKo": "메밀"
+    },
+    {
+      "id": "raw_egg",
+      "kind": "single",
+      "nameEn": "Egg",
+      "nameKo": "계란"
+    },
+    {
+      "id": "raw_milk",
+      "kind": "single",
+      "nameEn": "Milk",
+      "nameKo": "우유"
+    },
+    {
+      "id": "raw_shrimp",
+      "kind": "single",
+      "nameEn": "Shrimp",
+      "nameKo": "새우"
+    },
+    {
+      "id": "raw_crab",
+      "kind": "single",
+      "nameEn": "Crab",
+      "nameKo": "게"
+    },
+    {
+      "id": "raw_squid",
+      "kind": "single",
+      "nameEn": "Squid",
+      "nameKo": "오징어"
+    },
+    {
+      "id": "raw_mackerel",
+      "kind": "single",
+      "nameEn": "Mackerel",
+      "nameKo": "고등어"
+    },
+    {
+      "id": "raw_shellfish",
+      "kind": "single",
+      "nameEn": "Shellfish",
+      "nameKo": "조개류"
+    },
+    {
+      "id": "raw_fish",
+      "kind": "single",
+      "nameEn": "Fish",
+      "nameKo": "생선"
+    },
+    {
+      "id": "raw_soybean",
+      "kind": "single",
+      "nameEn": "Soybean",
+      "nameKo": "대두"
+    },
+    {
+      "id": "raw_pork",
+      "kind": "single",
+      "nameEn": "Pork",
+      "nameKo": "돼지고기"
+    },
+    {
+      "id": "raw_beef",
+      "kind": "single",
+      "nameEn": "Beef",
+      "nameKo": "소고기"
+    },
+    {
+      "id": "raw_chicken",
+      "kind": "single",
+      "nameEn": "Chicken",
+      "nameKo": "닭고기"
+    },
+    {
+      "id": "raw_sesame",
+      "kind": "single",
+      "nameEn": "Sesame",
+      "nameKo": "참깨"
+    },
+    {
+      "id": "raw_peach",
+      "kind": "single",
+      "nameEn": "Peach",
+      "nameKo": "복숭아"
+    },
+    {
+      "id": "raw_tomato",
+      "kind": "single",
+      "nameEn": "Tomato",
+      "nameKo": "토마토"
+    },
+    {
+      "id": "raw_sulfites",
+      "kind": "single",
+      "nameEn": "Sulfites",
+      "nameKo": "아황산류"
+    }
+  ],
+  "note": "confirmedRelations는 reviewStatus='reviewed'인 관계만 포함합니다. 전문가 검토 대기 중인 관계는 이 파일에 없습니다 — 빌드 보고서를 참고하세요."
+}

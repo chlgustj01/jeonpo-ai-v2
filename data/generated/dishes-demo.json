@@ -1,0 +1,231 @@
+{
+  "dishes": [
+    {
+      "category": "korean_demo",
+      "id": "samgyeopsal",
+      "isDemo": true,
+      "nameEn": "Samgyeopsal (삼겹살구이)",
+      "nameKo": "Samgyeopsal (삼겹살구이)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "malatang",
+      "isDemo": true,
+      "nameEn": "Malatang (마라탕)",
+      "nameKo": "Malatang (마라탕)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "saltbread",
+      "isDemo": true,
+      "nameEn": "Salt Butter Bread (소금빵)",
+      "nameKo": "Salt Butter Bread (소금빵)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "haemulpajeon",
+      "isDemo": true,
+      "nameEn": "Haemul Pajeon (해물파전)",
+      "nameKo": "Haemul Pajeon (해물파전)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "gyeranjjim",
+      "isDemo": true,
+      "nameEn": "Gyeranjjim (계란찜)",
+      "nameKo": "Gyeranjjim (계란찜)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "halalchicken",
+      "isDemo": true,
+      "nameEn": "Halal Fried Chicken (할랄 치킨)",
+      "nameKo": "Halal Fried Chicken (할랄 치킨)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "brewcoffee",
+      "isDemo": true,
+      "nameEn": "Hand-Drip Coffee & Scone (핸드드립 커피 & 스콘)",
+      "nameKo": "Hand-Drip Coffee & Scone (핸드드립 커피 & 스콘)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "bingsu",
+      "isDemo": true,
+      "nameEn": "Injeolmi Bingsu (인절미 빙수)",
+      "nameKo": "Injeolmi Bingsu (인절미 빙수)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "dwaejigukbap",
+      "isDemo": true,
+      "nameEn": "Dwaeji Gukbap (돼지국밥)",
+      "nameKo": "Dwaeji Gukbap (돼지국밥)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "milmyeon",
+      "isDemo": true,
+      "nameEn": "Milmyeon (밀면)",
+      "nameKo": "Milmyeon (밀면)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "eomukbar",
+      "isDemo": true,
+      "nameEn": "Eomuk / Odeng (오뎅)",
+      "nameKo": "Eomuk / Odeng (오뎅)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "ssiathotteok",
+      "isDemo": true,
+      "nameEn": "Ssiat Hotteok (씨앗호떡)",
+      "nameKo": "Ssiat Hotteok (씨앗호떡)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "teahouse",
+      "isDemo": true,
+      "nameEn": "Ssanghwa-cha (쌍화차)",
+      "nameKo": "Ssanghwa-cha (쌍화차)"
+    },
+    {
+      "category": "korean_demo",
+      "id": "bubbletea",
+      "isDemo": true,
+      "nameEn": "Brown Sugar Bubble Milk Tea (흑당 버블티)",
+      "nameKo": "Brown Sugar Bubble Milk Tea (흑당 버블티)"
+    }
+  ],
+  "note": "이 파일의 모든 레코드는 해커톤 데모 데이터이며 실제 매장 확인 정보가 아닙니다.",
+  "restaurantVerification": [
+    {
+      "confidence": "none",
+      "dishId": "samgyeopsal",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0001",
+      "isDemo": true,
+      "locationFoodId": "samgyeopsal",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "malatang",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0002",
+      "isDemo": true,
+      "locationFoodId": "malatang",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "saltbread",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0003",
+      "isDemo": true,
+      "locationFoodId": "saltbread",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "haemulpajeon",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0004",
+      "isDemo": true,
+      "locationFoodId": "haemulpajeon",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "gyeranjjim",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0005",
+      "isDemo": true,
+      "locationFoodId": "gyeranjjim",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "halalchicken",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0006",
+      "isDemo": true,
+      "locationFoodId": "halalchicken",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "brewcoffee",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0007",
+      "isDemo": true,
+      "locationFoodId": "brewcoffee",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "bingsu",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0008",
+      "isDemo": true,
+      "locationFoodId": "bingsu",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "dwaejigukbap",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0009",
+      "isDemo": true,
+      "locationFoodId": "dwaejigukbap",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "milmyeon",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0010",
+      "isDemo": true,
+      "locationFoodId": "milmyeon",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "eomukbar",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0011",
+      "isDemo": true,
+      "locationFoodId": "eomukbar",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "ssiathotteok",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0012",
+      "isDemo": true,
+      "locationFoodId": "ssiathotteok",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "teahouse",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0013",
+      "isDemo": true,
+      "locationFoodId": "teahouse",
+      "verificationMethod": "demo_placeholder"
+    },
+    {
+      "confidence": "none",
+      "dishId": "bubbletea",
+      "doNotUseAsRealVerification": true,
+      "id": "rv_0014",
+      "isDemo": true,
+      "locationFoodId": "bubbletea",
+      "verificationMethod": "demo_placeholder"
+    }
+  ]
+}
