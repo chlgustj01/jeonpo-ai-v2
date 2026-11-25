@@ -419,7 +419,15 @@ class TestBuildPipeline(unittest.TestCase):
             self.assertEqual(r1["manifest"]["sourceHash"], r2["manifest"]["sourceHash"])
             self.assertEqual(r1["manifest"]["recordCounts"], r2["manifest"]["recordCounts"])
 
-            for fname, _ in build_food_knowledge_output_files():
+            # knowledge-manifest.json은 의도적으로 제외한다 — generatedAt 필드는
+            # "매번 바뀌는 게 정상"이라고 설계 자체가 명시한 필드라(load.py 상단
+            # 설명 참고), 두 빌드 사이에 초 단위가 넘어가면 실제로 다를 수 있다.
+            # dataVersion/sourceHash/recordCounts(타임스탬프 제외 핵심 내용)는
+            # 바로 위에서 이미 별도로 비교했다 — 이 루프는 "서비스가 실제로
+            # 소비하는 8개 데이터 파일"만 완전 바이트 일치를 확인한다.
+            from food_knowledge.load import OUTPUT_FILES as _SERVICE_OUTPUT_FILES
+
+            for fname, _ in _SERVICE_OUTPUT_FILES:
                 with open(os.path.join(out_dir_1, fname), encoding="utf-8") as f:
                     content1 = f.read()
                 with open(os.path.join(out_dir_2, fname), encoding="utf-8") as f:
@@ -475,12 +483,6 @@ class TestBuildPipeline(unittest.TestCase):
             shutil.rmtree(out_dir, ignore_errors=True)
 
 
-def build_food_knowledge_output_files():
-    from food_knowledge.load import OUTPUT_FILES
-
-    return OUTPUT_FILES + [("knowledge-manifest.json", None)]
-
-
 class TestImp11Regression(unittest.TestCase):
     def test_tc_18c_16_imp11_tests_still_pass(self):
         """[회귀] IMP-11의 22개 테스트가 이번 IMP-18C 작업(코드 변경 없음)
@@ -497,6 +499,164 @@ class TestImp11Regression(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("PASS: 21", result.stdout)  # imp-11-after.js의 "=== 요약 ===" 출력 형식 그대로
+
+
+# =======================================================================
+# [IMP-18D-1] literature_reviewed / expert_reviewed / reviewerType /
+# evidenceScope 신규 규칙 테스트 (기존 테스트는 위 그대로 전부 유지).
+# =======================================================================
+def _base_04_row(**overrides):
+    row = {
+        "id": "ia_0001", "ingredientId": "raw_peanut", "allergenId": "peanut",
+        "relationType": "CONTAINS_AS_RAW_MATERIAL", "confidence": "high",
+        "evidenceId": "EV-TEST-1", "reviewStatus": "literature_reviewed",
+        "evidenceType": "literature_cross_checked", "reviewedAt": "", "notes": "",
+        "reviewerType": "ai_literature_check", "evidenceScope": "legal_food_type_definition",
+        "verifiedAt": "",
+    }
+    row.update(overrides)
+    return row
+
+
+class TestLiteratureAndExpertReview(TempWorkbookTestCase):
+    def test_literature_reviewed_requires_ai_literature_check_reviewer_type(self):
+        path = self.workbook_path()
+        make_minimal_workbook(path, sheet_overrides={
+            "04_Ingredient_Allergens": [_base_04_row(reviewerType="unreviewed")],
+        })
+        validation = validate_extracted(extract_workbook(path))
+        self.assertFalse(validation.ok)
+        self.assertTrue(any(f.code == "LITERATURE_REVIEWED_REQUIRES_AI_LITERATURE_CHECK" for f in validation.errors))
+
+    def test_literature_reviewed_requires_evidence_scope(self):
+        path = self.workbook_path()
+        make_minimal_workbook(path, sheet_overrides={
+            "04_Ingredient_Allergens": [_base_04_row(evidenceScope="none")],
+        })
+        validation = validate_extracted(extract_workbook(path))
+        self.assertFalse(validation.ok)
+        self.assertTrue(any(f.code == "LITERATURE_REVIEWED_REQUIRES_EVIDENCE_SCOPE" for f in validation.errors))
+
+    def test_literature_reviewed_requires_matching_evidence_type(self):
+        path = self.workbook_path()
+        make_minimal_workbook(path, sheet_overrides={
+            "04_Ingredient_Allergens": [_base_04_row(evidenceType="ai_estimated_general_knowledge", reviewStatus="literature_reviewed")],
+        })
+        validation = validate_extracted(extract_workbook(path))
+        self.assertFalse(validation.ok)
+        # 이 조합은 두 규칙에 동시에 걸린다: AI추정-reviewed둔갑 금지 규칙 + evidenceType 불일치 규칙
+        codes = {f.code for f in validation.errors}
+        self.assertIn("AI_ESTIMATE_MARKED_AS_REVIEWED", codes)
+        self.assertIn("LITERATURE_REVIEWED_REQUIRES_MATCHING_EVIDENCE_TYPE", codes)
+
+    def test_evidence_scope_requiring_specific_doc_needs_evidence_id(self):
+        path = self.workbook_path()
+        make_minimal_workbook(path, sheet_overrides={
+            "04_Ingredient_Allergens": [_base_04_row(evidenceId="", evidenceScope="international_standard")],
+        })
+        validation = validate_extracted(extract_workbook(path))
+        self.assertFalse(validation.ok)
+        self.assertTrue(any(f.code == "EVIDENCE_SCOPE_REQUIRES_EVIDENCE_ID" for f in validation.errors))
+
+    def test_04_sheet_always_requires_evidence_id_even_for_general_knowledge_scope(self):
+        """04_Ingredient_Allergens(실제 식재료-알레르겐 관계)는 evidenceScope가
+        'general_culinary_knowledge'라도 evidenceId 없이는 literature_reviewed를
+        허용하지 않는다 — 식품안전 관련 관계 주장은 "일반 상식"만으로 승격시키지
+        않겠다는 더 엄격한 기준(이 시트 전용 §_EVIDENCE_PRESENCE_RULES 규칙B)."""
+        path = self.workbook_path()
+        make_minimal_workbook(path, sheet_overrides={
+            "04_Ingredient_Allergens": [_base_04_row(evidenceId="", evidenceScope="general_culinary_knowledge")],
+        })
+        validation = validate_extracted(extract_workbook(path))
+        self.assertFalse(validation.ok)
+        self.assertTrue(any(f.code == "MISSING_EVIDENCE_FOR_REVIEWED" for f in validation.errors))
+
+    def test_02_sheet_allows_blank_evidence_id_for_general_culinary_knowledge(self):
+        """반면 02_Allergen_Aliases(단/복수형 등 트리비얼 표기 변형)는
+        'general_culinary_knowledge' 범위에서 evidenceId 없이도 literature_reviewed를
+        허용한다 — 실제 데이터의 'peanuts'/'walnuts' 같은 동의어가 이 패턴이다."""
+        path = self.workbook_path()
+        make_minimal_workbook(path, sheet_overrides={
+            "02_Allergen_Aliases": [{
+                "allergenId": "peanut", "alias": "peanuts", "lang": "en",
+                "reviewStatus": "literature_reviewed", "evidenceType": "literature_cross_checked",
+                "notes": "", "evidenceId": "", "reviewerType": "ai_literature_check",
+                "evidenceScope": "general_culinary_knowledge", "verifiedAt": "",
+            }],
+        })
+        validation = validate_extracted(extract_workbook(path))
+        self.assertTrue(validation.ok, [f.message for f in validation.errors])
+
+    def test_expert_reviewed_requires_human_expert_and_verified_at(self):
+        path = self.workbook_path()
+        make_minimal_workbook(path, sheet_overrides={
+            "04_Ingredient_Allergens": [_base_04_row(
+                reviewStatus="expert_reviewed", reviewerType="ai_literature_check", verifiedAt="",
+            )],
+        })
+        validation = validate_extracted(extract_workbook(path))
+        self.assertFalse(validation.ok)
+        codes = {f.code for f in validation.errors}
+        self.assertIn("EXPERT_REVIEWED_REQUIRES_HUMAN_EXPERT", codes)
+        self.assertIn("EXPERT_REVIEWED_REQUIRES_VERIFIED_DATE", codes)
+
+    def test_expert_reviewed_passes_with_real_human_expert_and_date(self):
+        path = self.workbook_path()
+        make_minimal_workbook(path, sheet_overrides={
+            "04_Ingredient_Allergens": [_base_04_row(
+                reviewStatus="expert_reviewed", reviewerType="human_expert", verifiedAt="2026-11-26",
+                evidenceScope="legal_food_type_definition",
+            )],
+        })
+        validation = validate_extracted(extract_workbook(path))
+        self.assertTrue(validation.ok, [f.message for f in validation.errors])
+
+    def test_human_expert_reviewer_type_requires_expert_reviewed_status(self):
+        """사람 전문가가 봤다고 적어놓고 상태는 'pending'인 것처럼 모순된 조합을 막는다
+        (실제 전문가가 확인하지 않은 자료를 expert_reviewed로 표시하지 않는다는 지시의 반대 방향 — 대칭)."""
+        path = self.workbook_path()
+        make_minimal_workbook(path, sheet_overrides={
+            "04_Ingredient_Allergens": [_base_04_row(
+                reviewStatus="pending_expert_review", reviewerType="human_expert",
+                evidenceType="ai_estimated_general_knowledge",
+            )],
+        })
+        validation = validate_extracted(extract_workbook(path))
+        self.assertFalse(validation.ok)
+        self.assertTrue(any(f.code == "HUMAN_EXPERT_REQUIRES_EXPERT_REVIEWED_STATUS" for f in validation.errors))
+
+    def test_transform_separates_literature_backed_from_confirmed(self):
+        path = self.workbook_path()
+        make_minimal_workbook(path, sheet_overrides={
+            "04_Ingredient_Allergens": [
+                {"id": "ia_0001", "ingredientId": "raw_peanut", "allergenId": "peanut",
+                 "relationType": "IS_ALLERGEN", "confidence": "high", "evidenceId": "EV-TEST-1",
+                 "reviewStatus": "reviewed", "evidenceType": "definitional", "reviewedAt": "", "notes": "",
+                 "reviewerType": "unreviewed", "evidenceScope": "none", "verifiedAt": ""},
+                _base_04_row(id="ia_0002"),
+            ],
+        })
+        extracted = extract_workbook(path)
+        self.assertTrue(validate_extracted(extracted).ok)
+        out = transform(extracted)
+        confirmed_ids = {r["id"] for r in out.ingredient_knowledge["confirmedRelations"]}
+        lit_ids = {r["id"] for r in out.ingredient_knowledge["literatureBackedCandidates"]}
+        self.assertEqual(confirmed_ids, {"ia_0001"})
+        self.assertEqual(lit_ids, {"ia_0002"})
+        lit_row = out.ingredient_knowledge["literatureBackedCandidates"][0]
+        self.assertFalse(lit_row["autoApplyToRiskJudgment"])
+
+    def test_real_data_has_zero_actual_human_expert_reviews(self):
+        """정직성 확인: 지금 Master DB에 '사람 전문가가 실제로 검토함'이라고
+        주장하는 행이 단 하나도 없어야 한다(아직 전문가 검토를 받은 적이 없으므로)."""
+        extracted = extract_workbook(REAL_WORKBOOK)
+        self.assertTrue(extracted.ok, extracted.fatal_errors)
+        for sheet in ("04_Ingredient_Allergens", "02_Allergen_Aliases"):
+            human_expert_rows = [
+                r for r in extracted.sheets[sheet]
+                if r.get("reviewerType") == "human_expert" or r.get("reviewStatus") == "expert_reviewed"
+            ]
+            self.assertEqual(human_expert_rows, [], f"{sheet}에 실제로는 없어야 할 human_expert 행 발견")
 
 
 if __name__ == "__main__":

@@ -188,5 +188,125 @@
     "title": "해커톤 원본 index.html locations[] 데모 데이터",
     "type": "demo_internal",
     "url": "(내부 파일, 외부 URL 없음)"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-FOODCODE-JANGRYU",
+    "licenseConfirmed": true,
+    "publishedDate": "",
+    "reliability": "secondary_summary",
+    "title": "식품공전 — 장류(간장·된장·고추장·혼합장) 식품유형 정의",
+    "type": "regulatory",
+    "url": "https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=32"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-FOODCODE-JEOTGAL",
+    "licenseConfirmed": true,
+    "publishedDate": "",
+    "reliability": "secondary_summary",
+    "title": "식품공전 — 젓갈류(액젓·새우젓) 식품유형 정의 및 원재료",
+    "type": "regulatory",
+    "url": "https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=46"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-FOODCODE-SESAMEOIL",
+    "licenseConfirmed": true,
+    "publishedDate": "",
+    "reliability": "secondary_summary",
+    "title": "식품공전 — 식용유지류 참기름 정의(타 식용유지 혼합 금지)",
+    "type": "regulatory",
+    "url": "https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=28"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-FOODCODE-FISHPASTE",
+    "licenseConfirmed": true,
+    "publishedDate": "",
+    "reliability": "secondary_summary",
+    "title": "식품공전 — 어육가공품류(어묵) 식품유형 정의",
+    "type": "regulatory",
+    "url": "https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=46"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-FOODCODE-KIMCHI",
+    "licenseConfirmed": true,
+    "publishedDate": "",
+    "reliability": "secondary_summary",
+    "title": "식품공전 — 김치류(배추김치) 식품유형 정의 및 원재료",
+    "type": "regulatory",
+    "url": "https://wikim.re.kr/board.es?act=view&bid=0018&list_no=1751"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-FOODCODE-CURRY",
+    "licenseConfirmed": true,
+    "publishedDate": "",
+    "reliability": "secondary_summary",
+    "title": "식품공전 — 카레(카레분/카레/카레루) 식품유형 정의",
+    "type": "regulatory",
+    "url": "https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=36"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-FOODCODE-PEANUTBUTTER",
+    "licenseConfirmed": true,
+    "publishedDate": "",
+    "reliability": "secondary_summary",
+    "title": "식품공전 — 땅콩 또는 견과류가공품류(땅콩버터) 정의",
+    "type": "regulatory",
+    "url": "https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=36"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-CODEX-MAYONNAISE",
+    "licenseConfirmed": true,
+    "publishedDate": "1989",
+    "reliability": "secondary_summary",
+    "title": "CODEX STAN 168-1989 — Mayonnaise (Regional European Standard)",
+    "type": "regulatory",
+    "url": "https://alimentosargentinos.magyp.gob.ar/contenido/marco/Codex_Alimentarius/normativa/codex/stan/168-1989.PDF"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-OYSTERSAUCE-STUDY",
+    "licenseConfirmed": true,
+    "publishedDate": "",
+    "reliability": "secondary_summary",
+    "title": "개체동결 굴을 이용한 굴소스의 제조 및 품질특성 (단일 연구 배합)",
+    "type": "peer_reviewed_study",
+    "url": "https://scienceon.kisti.re.kr/srch/selectPORSrchArticle.do?cn=JAKO201506959397337"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-KR-CRABSTICK-NEWS",
+    "licenseConfirmed": true,
+    "publishedDate": "",
+    "reliability": "secondary_summary",
+    "title": "게맛살(크래미) 원재료 실태 보도 — 연육 60~80%, 전분 10~15%, 계란흰자, 게살 함량 1~5%(또는 0%)",
+    "type": "regulatory",
+    "url": "https://www.consumernews.co.kr/news/articleView.html?idxno=408035"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-FDA-SHRIMP-SYNONYM",
+    "licenseConfirmed": true,
+    "publishedDate": "",
+    "reliability": "secondary_summary",
+    "title": "FDA 갑각류(Crustacean shellfish) 표시 동의어 안내 — shrimp/prawn/crevette/scampi 등",
+    "type": "regulatory",
+    "url": "https://www.fda.gov/media/117410/download"
+  },
+  {
+    "citationOnly": true,
+    "id": "EV-FAO-GROUNDNUT-PEANUT",
+    "licenseConfirmed": true,
+    "publishedDate": "",
+    "reliability": "secondary_summary",
+    "title": "FAO Agrovoc / USDA Taxon DB — groundnut=peanut(Arachis hypogaea) 동일 품종 확인",
+    "type": "regulatory",
+    "url": "https://agrovoc.fao.org/browse/agrovoc/en/page/?uri=c_11368"
   }
 ]

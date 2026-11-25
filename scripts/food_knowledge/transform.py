@@ -50,7 +50,7 @@ def _split_ref_status_list(value: Any) -> list[dict[str, str]]:
 class TransformOutput:
     allergen_registry: list[dict] = field(default_factory=list)
     allergen_candidates: list[dict] = field(default_factory=list)
-    allergen_aliases: list[dict] = field(default_factory=list)
+    allergen_aliases: dict = field(default_factory=dict)
     ingredient_knowledge: dict = field(default_factory=dict)
     dishes_demo: dict = field(default_factory=dict)
     regulatory_standards: list[dict] = field(default_factory=list)
@@ -108,6 +108,8 @@ def transform(extracted: ExtractResult) -> TransformOutput:
                 }
             )
 
+    aliases_reviewed = []
+    aliases_literature_backed = []
     for row in sheets.get("02_Allergen_Aliases", []):
         record = {
             "allergenId": row["allergenId"],
@@ -115,13 +117,33 @@ def transform(extracted: ExtractResult) -> TransformOutput:
             "lang": row.get("lang", ""),
             "evidenceType": row.get("evidenceType", ""),
         }
-        if row.get("reviewStatus") == "reviewed":
-            out.allergen_aliases.append(record)
+        status = row.get("reviewStatus")
+        if status == "reviewed":
+            aliases_reviewed.append(record)
+        elif status == "literature_reviewed":
+            # [IMP-18D-1] AI가 FDA/FAO/Codex 등 공식 문헌을 실제로 대조해 확인한
+            # 동의어 — 사람 전문가 서명은 아니므로 'reviewed'와는 분리된 배열에 둔다.
+            aliases_literature_backed.append(
+                {**record, "evidenceScope": row.get("evidenceScope", ""), "evidenceId": row.get("evidenceId", "")}
+            )
         else:
-            out.pending_aliases.append({**record, "reviewStatus": row.get("reviewStatus", "")})
+            out.pending_aliases.append({**record, "reviewStatus": status})
+
+    out.allergen_aliases = {
+        "reviewed": aliases_reviewed,
+        "literatureBacked": aliases_literature_backed,
+        "note": (
+            "reviewed: 사람 전문가 또는 IMP-11 공식 마이그레이션 매핑으로 확정된 동의어. "
+            "literatureBacked: AI가 FDA/FAO/Codex 등 공식 문헌을 실제로 대조해 확인했지만 "
+            "사람 전문가의 서명은 받지 않은 동의어 — 둘 다 검색 매칭에는 쓸 수 있지만, "
+            "애매한 표현(예: 'shellfish'가 갑각류/연체동물 중 무엇을 가리키는지 불명확한 경우)은 "
+            "이 파일에 없고 빌드 보고서의 검토 대기 목록에만 있다."
+        ),
+    }
 
     ingredients_by_id = {r["id"]: r for r in sheets.get("03_Ingredients", [])}
     confirmed_relations = []
+    literature_backed_candidates = []
     for row in sheets.get("04_Ingredient_Allergens", []):
         record = {
             "id": row["id"],
@@ -131,11 +153,27 @@ def transform(extracted: ExtractResult) -> TransformOutput:
             "confidence": row.get("confidence", ""),
             "evidenceId": row.get("evidenceId", ""),
         }
-        if row.get("reviewStatus") == "reviewed":
+        status = row.get("reviewStatus")
+        if status == "reviewed":
             confirmed_relations.append(record)
+        elif status == "literature_reviewed":
+            # [IMP-18D-1] §9 정책: "문헌 근거가 확보된 일반 레시피 관계는 확인
+            # 후보 또는 직원 질문 생성의 참고자료로 사용할 수 있지만 실제 음식에
+            # 성분이 존재한다는 확정 판정에는 사용하지 않는다." — confirmedRelations와
+            # 물리적으로 분리된 별도 배열에 두고, autoApplyToRiskJudgment를 false로
+            # 명시해 "확정 판정용이 아님"을 구조적으로 강제한다(candidate 알레르겐과
+            # 동일한 패턴).
+            literature_backed_candidates.append(
+                {
+                    **record,
+                    "evidenceScope": row.get("evidenceScope", ""),
+                    "autoApplyToRiskJudgment": False,
+                    "usableFor": ["confirmation_candidate", "staff_question_generation"],
+                }
+            )
         else:
             out.pending_ingredient_relations.append(
-                {**record, "reviewStatus": row.get("reviewStatus", ""), "evidenceType": row.get("evidenceType", "")}
+                {**record, "reviewStatus": status, "evidenceType": row.get("evidenceType", "")}
             )
 
     out.ingredient_knowledge = {
@@ -144,9 +182,13 @@ def transform(extracted: ExtractResult) -> TransformOutput:
             for r in ingredients_by_id.values()
         ],
         "confirmedRelations": confirmed_relations,
+        "literatureBackedCandidates": literature_backed_candidates,
         "note": (
-            "confirmedRelations는 reviewStatus='reviewed'인 관계만 포함합니다. "
-            "전문가 검토 대기 중인 관계는 이 파일에 없습니다 — 빌드 보고서를 참고하세요."
+            "confirmedRelations: 법정 정의 등으로 확정된 관계(위험도 판정에 그대로 사용 가능). "
+            "literatureBackedCandidates: 식품공전/Codex/탐사보도 등 문헌 근거는 있지만 사람 "
+            "전문가 검토는 아직 없는 관계 — 확인 후보·직원 질문 생성 참고자료로만 사용하고 "
+            "'이 음식에 이 성분이 확정적으로 있다'는 판정에는 쓰지 않는다(autoApplyToRiskJudgment=false). "
+            "둘 다 아닌 관계(순수 AI 추정)는 이 파일에 없음 — 빌드 보고서 참고."
         ),
     }
 

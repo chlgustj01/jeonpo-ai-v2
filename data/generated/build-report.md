@@ -11,10 +11,10 @@
 | 05_Dishes | 14 |
 | 06_Dish_Ingredients | 0 |
 | 07_Regulatory_Standards | 8 |
-| 08_Evidence_Sources | 19 |
+| 08_Evidence_Sources | 31 |
 | 09_Restaurant_Verification | 14 |
 | 10_Epidemiology | 3 |
-| 11_Changelog | 2 |
+| 11_Changelog | 3 |
 
 ## 2. 전체 검증 결과
 
@@ -41,51 +41,48 @@
 
 - allergen-registry.json (active): 21건
 - allergen-candidates.json (candidate): 18건
-- allergen-aliases.json (reviewed만): 0건
-- ingredient-knowledge.json: ingredients 39건, confirmedRelations(reviewed만) 25건
+- allergen-aliases.json: reviewed 0건, literatureBacked 14건
+- ingredient-knowledge.json: ingredients 39건, confirmedRelations 22건, literatureBackedCandidates 23건
 - dishes-demo.json: dishes 14건, restaurantVerification 14건(전부 데모)
 - regulatory-standards.json: 8건
-- evidence-sources.json: 19건
+- evidence-sources.json: 31건
 
 ## 6. 검토 대기 데이터(서비스 JSON에서 제외됨) — 관리용 목록
 
-- 알레르겐 별칭 대기: 15건 (AI가 추정한 영문 표기 변형 — 전문가 검토 전)
-- 식재료-알레르겐 관계 대기: 37건 (복합 식재료 실제 성분 추정 — 전문가 검토 전)
+- 알레르겐 별칭 대기: 1건 (AI가 추정한 영문 표기 변형 — 전문가 검토 전)
+- 식재료-알레르겐 관계 대기: 17건 (복합 식재료 실제 성분 추정 — 전문가 검토 전)
 - 역학 연구 대기: 2건 (원문 미열람 또는 부분검증)
 
 ### 6-1. 식재료-알레르겐 관계 대기 목록(상위 일부)
 
 | ingredientId | allergenId | relationType | reviewStatus |
 |---|---|---|---|
-| ganjang | soybean | CONTAINS_AS_RAW_MATERIAL | pending_expert_review |
-| ganjang | wheat | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
-| doenjang | soybean | CONTAINS_AS_RAW_MATERIAL | pending_expert_review |
-| gochujang | soybean | CONTAINS_AS_RAW_MATERIAL | pending_expert_review |
-| gochujang | wheat | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
-| ssamjang | soybean | CONTAINS_AS_RAW_MATERIAL | pending_expert_review |
-| ssamjang | wheat | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
 | ssamjang | sesame | TYPICAL_RECIPE_INCLUSION | pending_expert_review |
-| aekjeot | fish | CONTAINS_AS_RAW_MATERIAL | pending_expert_review |
-| aekjeot | shrimp | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
-| kimchi | fish | TYPICAL_RECIPE_INCLUSION | pending_expert_review |
-| kimchi | shrimp | TYPICAL_RECIPE_INCLUSION | pending_expert_review |
 | kimchi | wheat | TYPICAL_RECIPE_INCLUSION | pending_expert_review |
-| eomuk | fish | CONTAINS_AS_RAW_MATERIAL | pending_expert_review |
 | eomuk | wheat | TYPICAL_RECIPE_INCLUSION | pending_expert_review |
 | eomuk | egg | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
-| crab_stick | fish | CONTAINS_AS_RAW_MATERIAL | pending_expert_review |
-| crab_stick | crab | UNCONFIRMED | pending_expert_review |
-| crab_stick | egg | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
 | yuksu | soybean | TYPICAL_RECIPE_INCLUSION | pending_expert_review |
+| yuksu | fish | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
+| yuksu | beef | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
+| yuksu | pork | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
+| curry_sauce | milk | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
+| curry_sauce | pork | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
+| salad_dressing | egg | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
+| salad_dressing | milk | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
+| salad_dressing | soybean | PRODUCT_VARIANT_DEPENDENT | pending_expert_review |
+| bakery_general | wheat | CONTAINS_AS_RAW_MATERIAL | pending_expert_review |
+| bakery_general | egg | TYPICAL_RECIPE_INCLUSION | pending_expert_review |
+| bakery_general | milk | TYPICAL_RECIPE_INCLUSION | pending_expert_review |
+| bakery_general | peanut | UNCONFIRMED | pending_expert_review |
 
 ## 7. 빌드 메타데이터(knowledge-manifest.json)
 
 - schemaVersion: 1.0.0
-- dataVersion: aa4d25550e99a06f
+- dataVersion: 487ba76e487fb2e8
 - sourceWorkbook: Food_Allergen_Master.xlsx
-- sourceHash: 8efa12dcc89d7a793ace4833500b04d6e18de52e52f2e24c1549d3f4ed4496a0
+- sourceHash: 5ff785a3ed9ad9295bec3498f0151d4e90fb81fc33c141761ff0652827fe52a8
 - validationStatus: {'errors': 0, 'warnings': 0, 'status': 'passed'}
-- generatedAt: 2026-11-25T12:36:32+00:00
+- generatedAt: 2026-11-25T16:47:37+00:00
 
 ## 8. 기존 shared/allergens.js 호환성
 

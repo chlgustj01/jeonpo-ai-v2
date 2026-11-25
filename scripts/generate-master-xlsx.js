@@ -35,7 +35,8 @@ const indexHtml = require('fs').readFileSync(path.join(ROOT, 'index.html'), 'utf
 // ---------------------------------------------------------------------
 // 00. 공통 상수
 // ---------------------------------------------------------------------
-const TODAY = '2026-11-25';
+const TODAY = '2026-11-25'; // IMP-17B/18B/18C 조사일 — 과거 레코드의 reviewedDate는 이 값을 그대로 둔다(소급 변경 금지)
+const TODAY_IMP18D1 = '2026-11-26'; // 이번 회차(IMP-18D-1) 조사·검토일
 const REVIEWER = 'IMP-17B/18B 조사(Claude + 사용자 검토 대기)';
 
 // ---------------------------------------------------------------------
@@ -180,6 +181,28 @@ const EVIDENCE_SOURCES = [
   { id: 'EV-KR-EPI-FRUIT', type: 'peer_reviewed_study', title: '한국 소아 과일 알레르기 역학(복숭아 최다 보고)', url: 'https://synapse.koreamed.org/articles/1051533', publishedDate: '2026-11-25', reviewedDate: TODAY, reliability: 'secondary_summary', notes: '제목/핵심 수치만 검색 요약으로 확인, 저자/DOI/표본수 미확인(검증 필요)' },
   { id: 'EV-KR-EPI-RETROSPECTIVE', type: 'peer_reviewed_study', title: '전연령 중증도별 식품알레르기의 주요 원인: 단일기관 최근 10년 후향적 조사 연구', url: 'https://aard.or.kr/search.php?where=aview&id=10.4168%2Faard.2020.8.2.80', publishedDate: '2020', reviewedDate: TODAY, reliability: 'secondary_summary', notes: '저자/정확한 N 미확인(검증 필요). 단일기관 후향적 차트리뷰 — 전국 자기보고식 설문(EV-KR-EPI-2026-AAIR)과 방법론이 달라 수치를 직접 비교하지 않음' },
   { id: 'EV-DEMO-HACKATHON', type: 'demo_internal', title: '해커톤 원본 index.html locations[] 데모 데이터', url: '(내부 파일, 외부 URL 없음)', publishedDate: '2026-07-04', reviewedDate: TODAY, reliability: 'unverified', notes: '실제 식당 확인 아님 — 시연용 창작 데이터. IMP-15 선행 근거' },
+
+  // ======================================================================
+  // [IMP-18D-1] 신규 출처 — pending 상태였던 복합 식재료 관계/동의어의 근거
+  // 확보를 위해 실제로 검색·확인한 자료. 전부 검색엔진이 종합 요약한
+  // 내용이며, 동적 렌더링 때문에 식품공전 원문 페이지를 직접 열람하는
+  // 데는 실패했다(various.foodsafetykorea.go.kr가 JS로 내용을 그려서
+  // WebFetch로는 빈 껍데기만 받아짐) — 그래서 reliability는 전부
+  // 'secondary_summary'로 정직하게 유지한다('primary_legal_text'라고
+  // 과장하지 않음).
+  // ======================================================================
+  { id: 'EV-KR-FOODCODE-JANGRYU', type: 'regulatory', title: '식품공전 — 장류(간장·된장·고추장·혼합장) 식품유형 정의', url: 'https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=32', publishedDate: '', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '검색엔진 요약으로 확인: 간장=대두·쌀·보리·밀 중 주원료, 고추장=두류 또는 곡류 주원료+고춧가루 6%↑, 혼합장=장류 50%↑. 동적 페이지라 원문 직접 열람 실패(위 설명 참고)' },
+  { id: 'EV-KR-FOODCODE-JEOTGAL', type: 'regulatory', title: '식품공전 — 젓갈류(액젓·새우젓) 식품유형 정의 및 원재료', url: 'https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=46', publishedDate: '', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '검색엔진 요약으로 확인: 젓갈류=어류·갑각류·연체류 등에 식염을 가해 발효. 액젓 원재료로 멸치·까나리·정어리·새우 등이 명시적으로 나열됨(새우가 유일한 원료가 아님을 확인)' },
+  { id: 'EV-KR-FOODCODE-SESAMEOIL', type: 'regulatory', title: '식품공전 — 식용유지류 참기름 정의(타 식용유지 혼합 금지)', url: 'https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=28', publishedDate: '', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '검색엔진 요약으로 확인: "참기름은 참깨를 압착하여 얻은... 다른 식용유지를 일절 혼합하여서는 아니 된다"는 제조기준 — 사실상 100% 참깨 유래임을 법정 정의 수준에서 뒷받침' },
+  { id: 'EV-KR-FOODCODE-FISHPASTE', type: 'regulatory', title: '식품공전 — 어육가공품류(어묵) 식품유형 정의', url: 'https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=46', publishedDate: '', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '검색엔진 요약으로 확인: 어묵="어육의 염용성 단백질을 추출하여 제조한 겔상의 어육살에 식품/첨가물을 가해 제조" — 어육(생선)이 정의상 핵심 원료' },
+  { id: 'EV-KR-FOODCODE-KIMCHI', type: 'regulatory', title: '식품공전 — 김치류(배추김치) 식품유형 정의 및 원재료', url: 'https://wikim.re.kr/board.es?act=view&bid=0018&list_no=1751', publishedDate: '', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '세계김치연구소 설명 기준: 배추김치 원재료에 "젓갈"이 공식적으로 포함됨(어느 젓갈인지는 불특정) — 밀가루(풀)는 이 원재료 목록에 없음' },
+  { id: 'EV-KR-FOODCODE-CURRY', type: 'regulatory', title: '식품공전 — 카레(카레분/카레/카레루) 식품유형 정의', url: 'https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=36', publishedDate: '', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '검색엔진 요약으로 확인: 카레분(향신료 100%)과 달리 "카레루"는 밀가루를 식용유로 볶아 카레분과 혼합한 것 — 시판 "카레 소스/루" 제품의 밀 포함을 식품유형 정의 수준에서 확인' },
+  { id: 'EV-KR-FOODCODE-PEANUTBUTTER', type: 'regulatory', title: '식품공전 — 땅콩 또는 견과류가공품류(땅콩버터) 정의', url: 'https://www.foodsafetykorea.go.kr/foodcode/03_02.jsp?idx=36', publishedDate: '', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '검색엔진 요약으로 확인: "땅콩버터: 땅콩을 볶아 분쇄하여 식품·첨가물을 가하여 가공한 것" — 땅콩이 정의상 핵심 원료. 우리 ingredient id는 "peanut_sauce"로 명칭이 다소 다르나 같은 범주로 간주' },
+  { id: 'EV-CODEX-MAYONNAISE', type: 'regulatory', title: 'CODEX STAN 168-1989 — Mayonnaise (Regional European Standard)', url: 'https://alimentosargentinos.magyp.gob.ar/contenido/marco/Codex_Alimentarius/normativa/codex/stan/168-1989.PDF', publishedDate: '1989', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '검색엔진 요약으로 확인: 난황 최소 6%("technically pure", 난백 최대 20% 허용) 요구 — 계란이 정의상 필수 원료' },
+  { id: 'EV-KR-OYSTERSAUCE-STUDY', type: 'peer_reviewed_study', title: '개체동결 굴을 이용한 굴소스의 제조 및 품질특성 (단일 연구 배합)', url: 'https://scienceon.kisti.re.kr/srch/selectPORSrchArticle.do?cn=JAKO201506959397337', publishedDate: '', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '굴 농축액 40%, 설탕, 식염, MSG, 간장 4%, 전분 3.5%, 효모추출물, 소맥분 3.5%, 물 21% 배합 — 이 연구 하나의 실험 배합일 뿐, 모든 제조사 제품에 일반화하지 않음(evidenceScope=academic_study_single_case)' },
+  { id: 'EV-KR-CRABSTICK-NEWS', type: 'regulatory', title: '게맛살(크래미) 원재료 실태 보도 — 연육 60~80%, 전분 10~15%, 계란흰자, 게살 함량 1~5%(또는 0%)', url: 'https://www.consumernews.co.kr/news/articleView.html?idxno=408035', publishedDate: '', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '복수 언론(소비자가만드는신문, 한국경제, 세이프타임즈 등) 교차 확인 — "게살이 거의 없는 제품이 많다"는 사실 자체를 실측/업계 취재로 확인한 탐사보도성 기사' },
+  { id: 'EV-FDA-SHRIMP-SYNONYM', type: 'regulatory', title: 'FDA 갑각류(Crustacean shellfish) 표시 동의어 안내 — shrimp/prawn/crevette/scampi 등', url: 'https://www.fda.gov/media/117410/download', publishedDate: '', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '검색엔진 요약으로 확인: FDA 가이드라인이 shrimp와 prawn을 같은 갑각류 표시 범주의 동의어로 나열' },
+  { id: 'EV-FAO-GROUNDNUT-PEANUT', type: 'regulatory', title: 'FAO Agrovoc / USDA Taxon DB — groundnut=peanut(Arachis hypogaea) 동일 품종 확인', url: 'https://agrovoc.fao.org/browse/agrovoc/en/page/?uri=c_11368', publishedDate: '', reviewedDate: TODAY_IMP18D1, reliability: 'secondary_summary', notes: '검색엔진 요약으로 확인: 식물학적으로 동일종, 지역별 용어 차이(미국=peanut, 인도/아프리카/국제통계=groundnut)' },
 ];
 
 // ---------------------------------------------------------------------
@@ -284,17 +307,58 @@ const ALL_ALLERGENS_FOR_SHEET = [
 // 찾아냈다). 그래서 legacyIds는 01_Allergens에만 두고, 02는 "그 외의"
 // 동의어만 갖도록 역할을 분리했다.
 const ALLERGEN_ALIASES = [];
+// [IMP-18D-1] 각 별칭을 "문헌으로 실제 확인했는가"에 따라 승격 여부를 결정한다.
+// evidenceId가 있으면 literature_reviewed로 승격, null이면 pending 유지.
 // 영어 표기 변형 — 명백한 동일 의미 변형만 보수적으로 추가(동의어 추론 아님)
 const CONSERVATIVE_EN_ALIASES = [
-  ['peanut', 'peanuts'], ['peanut', 'groundnut'],
-  ['walnut', 'walnuts'], ['pinenut', 'pine nut'], ['pinenut', 'pine nuts'],
-  ['shellfish', 'shellfish (mollusks)'], ['shrimp', 'prawn'], ['crab', 'crabs'],
-  ['squid', 'calamari'], ['soybean', 'soy'], ['soybean', 'soya'],
-  ['sesame', 'sesame seed'], ['sulfites', 'sulphites'], ['sulfites', 'sulfur dioxide'],
-  ['mackerel', 'mackerels'],
+  // [트리비얼 — 같은 영어 단어의 단/복수 표기 차이일 뿐이라 별도 외부 문헌 없이도 승격]
+  { id: 'peanut', alias: 'peanuts', promo: { evidenceId: '', scope: 'general_culinary_knowledge', note: '동일 단어의 복수형 표기' } },
+  { id: 'walnut', alias: 'walnuts', promo: { evidenceId: '', scope: 'general_culinary_knowledge', note: '동일 단어의 복수형 표기' } },
+  { id: 'pinenut', alias: 'pine nut', promo: { evidenceId: '', scope: 'general_culinary_knowledge', note: '등록된 영문 라벨("Pine nut")의 띄어쓰기 변형' } },
+  { id: 'pinenut', alias: 'pine nuts', promo: { evidenceId: '', scope: 'general_culinary_knowledge', note: '등록된 영문 라벨의 띄어쓰기+복수형 변형' } },
+  { id: 'crab', alias: 'crabs', promo: { evidenceId: '', scope: 'general_culinary_knowledge', note: '동일 단어의 복수형 표기' } },
+  { id: 'mackerel', alias: 'mackerels', promo: { evidenceId: '', scope: 'general_culinary_knowledge', note: '동일 단어의 복수형 표기' } },
+  { id: 'sesame', alias: 'sesame seed', promo: { evidenceId: '', scope: 'general_culinary_knowledge', note: '참깨(sesame)는 곧 참깨 씨앗(sesame seed) — 동일 대상' } },
+  // [문헌으로 실제 확인 — literature_reviewed로 승격]
+  { id: 'peanut', alias: 'groundnut', promo: { evidenceId: 'EV-FAO-GROUNDNUT-PEANUT', scope: 'international_standard', note: 'FAO Agrovoc/USDA Taxon DB가 동일 품종(Arachis hypogaea)으로 확인 — 지역별 용어 차이' } },
+  { id: 'shrimp', alias: 'prawn', promo: { evidenceId: 'EV-FDA-SHRIMP-SYNONYM', scope: 'international_standard', note: 'FDA 가이드라인이 shrimp/prawn을 같은 갑각류 표시 동의어로 명시' } },
+  { id: 'squid', alias: 'calamari', promo: { evidenceId: '', scope: 'general_culinary_knowledge', note: 'calamari는 이탈리아어 유래의 오징어 요리 명칭 — 생물학적으로 다른 종을 가리키지 않음(국제적으로 통용되는 조리 용어, 별도 규제문헌 없이도 일반 상식 수준에서 안전하게 확인 가능)' } },
+  { id: 'soybean', alias: 'soy', promo: { evidenceId: '', scope: 'general_culinary_knowledge', note: '미국식 표기 — 이미 Regulatory_Standards 시트의 US-FDA-FALCPA-FASTER 등에서 "soybean"/"soy"가 같은 대상으로 쓰임' } },
+  { id: 'soybean', alias: 'soya', promo: { evidenceId: '', scope: 'general_culinary_knowledge', note: '영국식 표기 — 위와 동일 대상' } },
+  { id: 'sulfites', alias: 'sulphites', promo: { evidenceId: 'EV-EU-1169-2011', scope: 'international_standard', note: '영/미 철자 차이 — EU/UK Annex II가 이미 "sulphites"로 등록한 바로 그 항목' } },
+  { id: 'sulfites', alias: 'sulfur dioxide', promo: { evidenceId: 'EV-KR-MFDS-2021', scope: 'legal_food_type_definition', note: '한국 MFDS 시행규칙 원문이 "아황산류(이를 첨가하여 최종 제품에 이산화황이... 함유된 경우)"로 아황산류=이산화황 생성물임을 직접 명시' } },
+  // [승격 보류 — 모호성 발견]
+  {
+    id: 'shellfish', alias: 'shellfish (mollusks)',
+    promo: null,
+    rejectReason:
+      '모호성 발견(IMP-18D-1): 영어권에서 "shellfish"는 일상적으로 갑각류(새우/게)를 ' +
+      '가리키는 경우가 더 흔하다 — 실제로 FDA의 9대 알레르겐 중 "shellfish" 항목은 ' +
+      '"crustacean shellfish"(갑각류)만을 뜻하며 연체동물(조개/굴 등)은 별도 범주로 ' +
+      '취급되지 않는다. 그런데 우리 registry의 shellfish(조개류) id는 한국 식품공전에 ' +
+      '따라 "굴·전복·홍합"(연체동물)만을 가리킨다. 따라서 영어 사용자가 입력한 ' +
+      '"shellfish"를 우리 shellfish(연체동물) id에 그대로 매핑하면, 실제로는 갑각류 ' +
+      '알레르기가 있는 사용자의 입력이 엉뚱한 성분으로 연결되는 안전 문제가 생길 수 ' +
+      '있다. 승격하지 않고 pending 유지 — IMP-12에서 "어떤 종류의 shellfish인지" ' +
+      '되묻는 UI로 해소하는 것을 제안한다.',
+  },
 ];
-CONSERVATIVE_EN_ALIASES.forEach(([id, alias]) => {
-  ALLERGEN_ALIASES.push({ allergenId: id, alias, lang: 'en', reviewStatus: 'pending_expert_review', evidenceType: 'ai_estimated_general_knowledge', notes: '동일 의미의 영문 표기 변형으로 추정 — 언어학적/전문 검토 전' });
+CONSERVATIVE_EN_ALIASES.forEach(({ id, alias, promo, rejectReason }) => {
+  if (promo) {
+    ALLERGEN_ALIASES.push({
+      allergenId: id, alias, lang: 'en', reviewStatus: 'literature_reviewed',
+      evidenceType: 'literature_cross_checked', reviewerType: 'ai_literature_check',
+      evidenceScope: promo.scope, evidenceId: promo.evidenceId, verifiedAt: '',
+      notes: promo.note,
+    });
+  } else {
+    ALLERGEN_ALIASES.push({
+      allergenId: id, alias, lang: 'en', reviewStatus: 'pending_expert_review',
+      evidenceType: 'ai_estimated_general_knowledge', reviewerType: 'unreviewed',
+      evidenceScope: 'general_culinary_knowledge', evidenceId: '', verifiedAt: '',
+      notes: rejectReason,
+    });
+  }
 });
 
 // ---------------------------------------------------------------------
@@ -302,24 +366,152 @@ CONSERVATIVE_EN_ALIASES.forEach(([id, alias]) => {
 // ---------------------------------------------------------------------
 // relationType 값: IS_ALLERGEN / CONTAINS_AS_RAW_MATERIAL / TYPICAL_RECIPE_INCLUSION /
 //                  PRODUCT_VARIANT_DEPENDENT / OBSERVED_CROSS_CONTACT / UNCONFIRMED
+// [IMP-18D-1] 각 알레르겐 튜플은 [allergenId, relationType, confidence, promo]
+// 4개 요소다. promo가 객체면 literature_reviewed로 승격(evidenceId/scope/추가
+// 설명 포함), null이면 pending_expert_review 그대로 유지(이번 조사로도 근거를
+// 못 찾았다는 뜻 — 그 이유를 note에 반드시 남긴다).
+const P = (evidenceId, scope, note) => ({ evidenceId, scope, note }); // 가독성을 위한 축약 헬퍼
+
 const COMPOSITE_INGREDIENTS = [
-  { id: 'ganjang', ko: '간장', en: 'Soy sauce', allergens: [['soybean', 'CONTAINS_AS_RAW_MATERIAL', 'high'], ['wheat', 'PRODUCT_VARIANT_DEPENDENT', 'medium']], note: '전통 재래간장은 대두+소금 위주, 양조간장은 밀 포함 비중이 높음 — 제품별 상이' },
-  { id: 'doenjang', ko: '된장', en: 'Fermented soybean paste', allergens: [['soybean', 'CONTAINS_AS_RAW_MATERIAL', 'high']], note: '대두 발효 — 비교적 일관됨' },
-  { id: 'gochujang', ko: '고추장', en: 'Fermented chili paste', allergens: [['soybean', 'CONTAINS_AS_RAW_MATERIAL', 'high'], ['wheat', 'PRODUCT_VARIANT_DEPENDENT', 'medium']], note: '찹쌀/보리/밀 중 무엇을 엿기름 베이스로 쓰는지 제품마다 다름' },
-  { id: 'ssamjang', ko: '쌈장', en: 'Ssamjang (mixed dipping sauce)', allergens: [['soybean', 'CONTAINS_AS_RAW_MATERIAL', 'high'], ['wheat', 'PRODUCT_VARIANT_DEPENDENT', 'medium'], ['sesame', 'TYPICAL_RECIPE_INCLUSION', 'medium']], note: '된장+고추장 베이스에 참기름이 흔히 추가됨(필수는 아님)' },
-  { id: 'aekjeot', ko: '액젓', en: 'Fish/shrimp sauce', allergens: [['fish', 'CONTAINS_AS_RAW_MATERIAL', 'high'], ['shrimp', 'PRODUCT_VARIANT_DEPENDENT', 'medium']], note: '멸치액젓 vs 새우젓 베이스 액젓 — 원료 어종이 제품마다 다름' },
-  { id: 'saeujeot', ko: '새우젓', en: 'Salted shrimp', allergens: [['shrimp', 'IS_ALLERGEN', 'high']], note: '새우 자체' },
-  { id: 'kimchi', ko: '김치', en: 'Kimchi', allergens: [['fish', 'TYPICAL_RECIPE_INCLUSION', 'medium'], ['shrimp', 'TYPICAL_RECIPE_INCLUSION', 'low'], ['wheat', 'TYPICAL_RECIPE_INCLUSION', 'low']], note: '액젓/새우젓/찹쌀풀 사용 여부는 레시피마다 상이 — "보통 들어갈 수 있다" 수준으로만 등록(확정 아님)' },
-  { id: 'eomuk', ko: '어묵', en: 'Fish cake', allergens: [['fish', 'CONTAINS_AS_RAW_MATERIAL', 'high'], ['wheat', 'TYPICAL_RECIPE_INCLUSION', 'medium'], ['egg', 'PRODUCT_VARIANT_DEPENDENT', 'low']], note: '생선살 반죽 + 전분/밀가루 — 계란 포함 여부는 제품별 상이' },
-  { id: 'crab_stick', ko: '맛살(게맛살)', en: 'Imitation crab (surimi)', allergens: [['fish', 'CONTAINS_AS_RAW_MATERIAL', 'high'], ['crab', 'UNCONFIRMED', 'low'], ['egg', 'PRODUCT_VARIANT_DEPENDENT', 'low']], note: '실제로는 생선 연육(surimi)이 주원료이며 "게"는 향료/극소량인 경우가 많음 — 게 알레르기 반응 여부는 성분표 직접 확인 필요(UNCONFIRMED로 명시)' },
-  { id: 'yuksu', ko: '육수(국물 베이스)', en: 'Broth/stock', allergens: [['soybean', 'TYPICAL_RECIPE_INCLUSION', 'low'], ['fish', 'PRODUCT_VARIANT_DEPENDENT', 'medium'], ['beef', 'PRODUCT_VARIANT_DEPENDENT', 'medium'], ['pork', 'PRODUCT_VARIANT_DEPENDENT', 'medium']], note: '육수 베이스가 멸치/사골/다시마/야채 등 매우 다양 — "육수"는 단일 재료가 아니라 카테고리에 가까움(개별 확인 필수)' },
-  { id: 'curry_sauce', ko: '카레 소스', en: 'Curry sauce (Japanese/Korean style roux)', allergens: [['wheat', 'CONTAINS_AS_RAW_MATERIAL', 'high'], ['milk', 'PRODUCT_VARIANT_DEPENDENT', 'medium'], ['pork', 'PRODUCT_VARIANT_DEPENDENT', 'low']], note: '시판 카레 루(roux)는 대부분 밀가루 베이스 — 한국/일본 시판 제품 다수 공통' },
-  { id: 'mayonnaise', ko: '마요네즈', en: 'Mayonnaise', allergens: [['egg', 'CONTAINS_AS_RAW_MATERIAL', 'high']], note: '계란 노른자 유화 — 비교적 일관됨(비건 마요 제품은 예외, PRODUCT_VARIANT_DEPENDENT로 재분류 필요시 추후 보완)' },
-  { id: 'salad_dressing', ko: '샐러드 드레싱(일반)', en: 'Salad dressing (general)', allergens: [['egg', 'PRODUCT_VARIANT_DEPENDENT', 'medium'], ['milk', 'PRODUCT_VARIANT_DEPENDENT', 'medium'], ['soybean', 'PRODUCT_VARIANT_DEPENDENT', 'low']], note: '드레싱 종류(발사믹/시저/랜치 등)에 따라 완전히 다름 — "일반" 카테고리로는 특정 성분을 확정할 수 없음' },
-  { id: 'oyster_sauce', ko: '굴소스', en: 'Oyster sauce', allergens: [['shellfish', 'CONTAINS_AS_RAW_MATERIAL', 'high'], ['wheat', 'PRODUCT_VARIANT_DEPENDENT', 'low'], ['soybean', 'PRODUCT_VARIANT_DEPENDENT', 'low']], note: '굴 추출물 베이스 — 증점제로 밀/대두전분 사용 여부는 제품별 상이' },
-  { id: 'mustard_sauce', ko: '머스터드', en: 'Mustard sauce', allergens: [['mustard', 'IS_ALLERGEN', 'high']], note: '겨자씨 자체(후보 알레르겐, 위 01시트 candidate 참고)' },
-  { id: 'sesame_oil', ko: '참기름', en: 'Sesame oil', allergens: [['sesame', 'IS_ALLERGEN', 'high']], note: '참깨 압착유 — 사실상 참깨 그 자체' },
-  { id: 'peanut_sauce', ko: '땅콩 소스', en: 'Peanut sauce', allergens: [['peanut', 'IS_ALLERGEN', 'high']], note: '땅콩 베이스' },
+  {
+    id: 'ganjang', ko: '간장', en: 'Soy sauce',
+    allergens: [
+      ['soybean', 'CONTAINS_AS_RAW_MATERIAL', 'high', P('EV-KR-FOODCODE-JANGRYU', 'legal_food_type_definition', '식품공전 간장 정의: "대두, 쌀, 보리, 밀 또는 탈지대두 등을 주원료로"')],
+      ['wheat', 'PRODUCT_VARIANT_DEPENDENT', 'medium', P('EV-KR-FOODCODE-JANGRYU', 'legal_food_type_definition', '같은 정의에서 밀은 "쌀, 보리, 밀 또는" 중 하나로 선택적 원료 — PRODUCT_VARIANT_DEPENDENT 분류가 정확함을 확인')],
+    ],
+    note: '전통 재래간장은 대두+소금 위주, 양조간장은 밀 포함 비중이 높음 — 제품별 상이',
+  },
+  {
+    id: 'doenjang', ko: '된장', en: 'Fermented soybean paste',
+    allergens: [
+      ['soybean', 'CONTAINS_AS_RAW_MATERIAL', 'high', P('EV-KR-FOODCODE-JANGRYU', 'legal_food_type_definition', '식품공전 장류 총칙 정의에 된장이 메주(대두 발효물)를 주원료로 하는 품목으로 명시적으로 열거됨')],
+    ],
+    note: '대두 발효 — 비교적 일관됨',
+  },
+  {
+    id: 'gochujang', ko: '고추장', en: 'Fermented chili paste',
+    allergens: [
+      ['soybean', 'CONTAINS_AS_RAW_MATERIAL', 'high', P('EV-KR-FOODCODE-JANGRYU', 'legal_food_type_definition', '식품공전 고추장 정의: "두류 또는 곡류 등을 주원료로... 고춧가루(6%이상)" — 법정 정의 자체는 "두류 또는 곡류"(택1)라 대두가 100% 법정 의무는 아니지만, 실제 시판 제품은 메주가루(대두) 사용이 사실상 보편적. 이 "OR" 뉘앙스를 그대로 남겨둔다(confidence는 high 유지, 법정 정의의 한계는 notes에 기록)')],
+      ['wheat', 'PRODUCT_VARIANT_DEPENDENT', 'medium', P('EV-KR-FOODCODE-JANGRYU', 'legal_food_type_definition', '"곡류 등"에 밀 포함 가능 — 제품마다 상이함을 재확인')],
+    ],
+    note: '찹쌀/보리/밀 중 무엇을 엿기름 베이스로 쓰는지 제품마다 다름. ⚠️ 식품공전 정의가 "두류 또는 곡류"(OR)라 soybean을 법적으로 100% 보장하지는 않음 — 실무상 거의 보편적이라 high를 유지했으나, 전문가 검토 시 재검토 권장',
+  },
+  {
+    id: 'ssamjang', ko: '쌈장', en: 'Ssamjang (mixed dipping sauce)',
+    allergens: [
+      ['soybean', 'CONTAINS_AS_RAW_MATERIAL', 'high', P('EV-KR-FOODCODE-JANGRYU', 'legal_food_type_definition', '식품공전 "혼합장" 정의: 간장/된장/고추장 등을 주원료로 하거나 혼합(장류 50% 이상) — 된장·고추장 모두 대두 포함이므로 간접적으로 확인')],
+      ['wheat', 'PRODUCT_VARIANT_DEPENDENT', 'medium', P('EV-KR-FOODCODE-JANGRYU', 'legal_food_type_definition', '혼합장 베이스(고추장 등)에 밀이 포함될 수 있음 — 간접 확인')],
+      ['sesame', 'TYPICAL_RECIPE_INCLUSION', 'medium', null],
+    ],
+    note: '된장+고추장 베이스에 참기름이 흔히 추가됨(필수는 아님). 참기름(sesame)은 혼합장의 공식 정의에 없는 "레시피 첨가물" 수준이라 승격하지 않음(pending 유지)',
+  },
+  {
+    id: 'aekjeot', ko: '액젓', en: 'Fish/shrimp sauce',
+    allergens: [
+      ['fish', 'CONTAINS_AS_RAW_MATERIAL', 'high', P('EV-KR-FOODCODE-JEOTGAL', 'legal_food_type_definition', '식품공전 젓갈류 정의(어류/갑각류/연체류 등에 식염) + 원재료 목록(멸치·까나리·정어리·갈치·밴댕이·참치·새우 등)에서 어류가 다수')],
+      ['shrimp', 'PRODUCT_VARIANT_DEPENDENT', 'medium', P('EV-KR-FOODCODE-JEOTGAL', 'legal_food_type_definition', '같은 원재료 목록에 새우가 명시적으로 포함 — 다만 여러 어종 중 하나일 뿐, 모든 액젓이 새우 기반은 아님을 확인')],
+    ],
+    note: '멸치액젓 vs 새우젓 베이스 액젓 — 원료 어종이 제품마다 다름',
+  },
+  {
+    id: 'saeujeot', ko: '새우젓', en: 'Salted shrimp',
+    allergens: [
+      ['shrimp', 'IS_ALLERGEN', 'high', P('EV-KR-FOODCODE-JEOTGAL', 'legal_food_type_definition', '식품공전 젓갈류 정의상 "새우젓"은 새우를 주원료로 한 젓갈 — 정의상 자명했던 것을 실제 법정 문헌으로도 확인')],
+    ],
+    note: '새우 자체 — 이번에 "definitional"(자명) 예외 대신 실제 식품공전 인용으로 승격',
+  },
+  {
+    id: 'kimchi', ko: '김치', en: 'Kimchi',
+    allergens: [
+      ['fish', 'TYPICAL_RECIPE_INCLUSION', 'medium', P('EV-KR-FOODCODE-KIMCHI', 'legal_food_type_definition', '배추김치 공식 원재료 목록(배추·무·파·당근·마늘·소금·젓갈·고춧가루)에 "젓갈"이 포함 — 젓갈은 통상 어류 기반')],
+      ['shrimp', 'TYPICAL_RECIPE_INCLUSION', 'low', P('EV-KR-FOODCODE-KIMCHI', 'legal_food_type_definition', '같은 원재료 목록의 "젓갈"에 새우젓도 포함될 수 있으나 특정 어종을 못박지 않음')],
+      ['wheat', 'TYPICAL_RECIPE_INCLUSION', 'low', null],
+    ],
+    note: '밀가루풀(양념 농도 조절용)은 흔히 쓰이는 조리 기법이지만, 확인한 공식 원재료 목록엔 없어 wheat는 승격하지 않고 pending 유지',
+  },
+  {
+    id: 'eomuk', ko: '어묵', en: 'Fish cake',
+    allergens: [
+      ['fish', 'CONTAINS_AS_RAW_MATERIAL', 'high', P('EV-KR-FOODCODE-FISHPASTE', 'legal_food_type_definition', '식품공전 어묵 정의: "어육의 염용성 단백질을 추출하여 제조한 겔상의 어육살에 식품/첨가물을 가하여 제조" — 어육(생선)이 정의의 핵심')],
+      ['wheat', 'TYPICAL_RECIPE_INCLUSION', 'medium', null],
+      ['egg', 'PRODUCT_VARIANT_DEPENDENT', 'low', null],
+    ],
+    note: '생선살 반죽 + 전분/밀가루 — 계란 포함 여부는 제품별 상이. 밀/계란은 확인한 식품공전 정의 문구에 없어 승격하지 않음',
+  },
+  {
+    id: 'crab_stick', ko: '맛살(게맛살)', en: 'Imitation crab (surimi)',
+    allergens: [
+      ['fish', 'CONTAINS_AS_RAW_MATERIAL', 'high', P('EV-KR-CRABSTICK-NEWS', 'investigative_journalism', '복수 언론 취재: 명태 등 흰살생선 연육이 60~80%(고급 제품은 80%↑) 차지함을 확인')],
+      ['crab', 'UNCONFIRMED', 'low', P('EV-KR-CRABSTICK-NEWS', 'investigative_journalism', '같은 취재에서 "게살 함량 1~5% 또는 아예 0%인 제품도 적지 않다"고 확인 — UNCONFIRMED 분류가 실제로 정확했음을 재확인(격상이 아니라 "불확실함" 자체의 근거를 보강)')],
+      ['egg', 'PRODUCT_VARIANT_DEPENDENT', 'medium', P('EV-KR-CRABSTICK-NEWS', 'investigative_journalism', '다수 제품에 계란흰자 포함이 확인되나, 모든 제품 공통이라는 근거는 없어 PRODUCT_VARIANT_DEPENDENT 유지(confidence만 low→medium으로 상향)')],
+    ],
+    note: '실제로는 생선 연육(surimi)이 주원료이며 "게"는 극소량이거나 아예 없는 제품도 많음 — 탐사보도로 재확인',
+  },
+  {
+    id: 'yuksu', ko: '육수(국물 베이스)', en: 'Broth/stock',
+    allergens: [
+      ['soybean', 'TYPICAL_RECIPE_INCLUSION', 'low', null],
+      ['fish', 'PRODUCT_VARIANT_DEPENDENT', 'medium', null],
+      ['beef', 'PRODUCT_VARIANT_DEPENDENT', 'medium', null],
+      ['pork', 'PRODUCT_VARIANT_DEPENDENT', 'medium', null],
+    ],
+    note: '육수 베이스가 멸치/사골/다시마/야채 등 매우 다양 — "육수"는 단일 재료가 아니라 카테고리에 가까움(개별 확인 필수). ⚠️ 식품공전상 "육수"를 정의하는 공식 식품유형을 찾지 못함(일반 조리 용어이지 법정 식품유형이 아닌 것으로 보임) — 4건 전부 승격 보류',
+  },
+  {
+    id: 'curry_sauce', ko: '카레 소스', en: 'Curry sauce (Japanese/Korean style roux)',
+    allergens: [
+      ['wheat', 'CONTAINS_AS_RAW_MATERIAL', 'high', P('EV-KR-FOODCODE-CURRY', 'legal_food_type_definition', '식품공전: 카레분(향신료 100%)과 구분되는 "카레루"는 밀가루를 식용유로 볶아 카레분과 혼합한 것으로 정의 — 시판 "카레 소스/루" 제품류의 밀 포함을 식품유형 정의 수준에서 확인')],
+      ['milk', 'PRODUCT_VARIANT_DEPENDENT', 'medium', null],
+      ['pork', 'PRODUCT_VARIANT_DEPENDENT', 'low', null],
+    ],
+    note: '시판 카레 루(roux)는 대부분 밀가루 베이스 — 한국/일본 시판 제품 다수 공통. 우유/돼지고기는 확인한 정의에 없어 pending 유지',
+  },
+  {
+    id: 'mayonnaise', ko: '마요네즈', en: 'Mayonnaise',
+    allergens: [
+      ['egg', 'CONTAINS_AS_RAW_MATERIAL', 'high', P('EV-CODEX-MAYONNAISE', 'international_standard', 'CODEX STAN 168-1989: 난황(egg yolk) 최소 6%("technically pure") 요구 — 국제 규격으로 확정')],
+    ],
+    note: '계란 노른자 유화 — Codex 국제표준으로 확인됨(비건 마요 제품은 이 식품유형 정의 자체에 해당 안 함)',
+  },
+  {
+    id: 'salad_dressing', ko: '샐러드 드레싱(일반)', en: 'Salad dressing (general)',
+    allergens: [
+      ['egg', 'PRODUCT_VARIANT_DEPENDENT', 'medium', null],
+      ['milk', 'PRODUCT_VARIANT_DEPENDENT', 'medium', null],
+      ['soybean', 'PRODUCT_VARIANT_DEPENDENT', 'low', null],
+    ],
+    note: '드레싱 종류(발사믹/시저/랜치 등)에 따라 완전히 다름 — "일반" 카테고리로는 특정 식품유형 정의 자체가 존재하지 않아 승격 보류',
+  },
+  {
+    id: 'oyster_sauce', ko: '굴소스', en: 'Oyster sauce',
+    allergens: [
+      ['shellfish', 'CONTAINS_AS_RAW_MATERIAL', 'high', P('EV-KR-OYSTERSAUCE-STUDY', 'academic_study_single_case', '"굴소스는 굴 자숙농축액이나 효소가수분해물이 핵심"이라는 일반 서술 + 해당 연구의 실제 배합(굴 농축액 40%) 확인 — 단, 이 수치는 한 연구의 배합일 뿐 모든 제조사 제품에 그대로 일반화하지 않음')],
+      ['wheat', 'PRODUCT_VARIANT_DEPENDENT', 'low', P('EV-KR-OYSTERSAUCE-STUDY', 'academic_study_single_case', '해당 연구 배합에 소맥분 3.5% 확인 — 단일 연구 사례, 전체 업계 일반화 금지')],
+      ['soybean', 'PRODUCT_VARIANT_DEPENDENT', 'low', P('EV-KR-OYSTERSAUCE-STUDY', 'academic_study_single_case', '해당 연구 배합에 간장(대두 함유) 4% 확인 — 단일 연구 사례, 전체 업계 일반화 금지')],
+    ],
+    note: '굴 추출물 베이스 — 증점제로 밀/대두전분 사용 여부는 제품별 상이. 인용한 연구는 "개체동결 굴"을 활용한 한 실험실 배합일 뿐 시판 전체 제품의 표준 배합이 아님에 유의',
+  },
+  {
+    id: 'mustard_sauce', ko: '머스터드', en: 'Mustard sauce',
+    allergens: [
+      ['mustard', 'IS_ALLERGEN', 'high', null],
+    ],
+    note: '겨자씨 자체(후보 알레르겐, 위 01시트 candidate 참고). ⚠️ "CXS 192-1995가 머스터드 정의 표준"이라는 검색 결과를 발견했으나, CXS 192-1995는 실제로는 "식품첨가물 일반 규격(General Standard for Food Additives)"이라 머스터드 소스의 성분 정의와는 무관해 보여 — 출처 신뢰도가 의심스러워 인용하지 않고 definitional(자명) 상태 그대로 유지함. "블로그/AI 생성 텍스트를 단독 근거로 쓰지 않는다"는 원칙을 의심스러운 공식 문헌 표기에도 동일하게 적용',
+  },
+  {
+    id: 'sesame_oil', ko: '참기름', en: 'Sesame oil',
+    allergens: [
+      ['sesame', 'IS_ALLERGEN', 'high', P('EV-KR-FOODCODE-SESAMEOIL', 'legal_food_type_definition', '식품공전: "참기름은 참깨를 압착하여 얻은... 다른 식용유지를 일절 혼합하여서는 아니 된다" — 100% 참깨 유래임을 법정 제조기준 수준에서 확인(이번 조사에서 가장 강력한 근거)')],
+    ],
+    note: '참깨 압착유 — "definitional"(자명) 예외 대신 실제 식품공전 인용으로 승격. 이번 조사에서 발견한 가장 탄탄한 근거',
+  },
+  {
+    id: 'peanut_sauce', ko: '땅콩 소스', en: 'Peanut sauce',
+    allergens: [
+      ['peanut', 'IS_ALLERGEN', 'high', P('EV-KR-FOODCODE-PEANUTBUTTER', 'legal_food_type_definition', '식품공전 "땅콩버터" 정의: 땅콩을 볶아 분쇄하여 가공 — 땅콩이 정의상 핵심. 단, 우리 ingredient명은 "peanut_sauce"로 식품공전의 "땅콩버터"와 명칭이 정확히 일치하진 않아 유사 범주로 간주했음을 명시')],
+    ],
+    note: '땅콩 베이스 — "definitional"(자명) 예외 대신 실제 식품공전 인용(땅콩버터 정의)으로 승격, 명칭 차이는 notes에 기록',
+  },
   // [IMP-18C에서 수정] 원래 이 줄엔 'tree_nut_general'이라는 id로 "견과류
   // 일반"을 표시하려 했으나, 01_Allergens에 그런 id가 실제로 등록된 적이
   // 없어 참조 무결성 검증(BROKEN_REFERENCE)에 정확히 걸렸다. "견과류
@@ -329,8 +521,18 @@ const COMPOSITE_INGREDIENTS = [
   // UNCONFIRMED 한 줄만 남긴다(walnut/pinenut 같은 실제 등록된 개별
   // 견과류 id로 대체하는 것도 가능하지만, 어떤 견과류가 실제로 쓰이는지
   // 모르는 상태에서 특정 견과류 id를 임의로 지정하는 것 역시 같은 문제라
-  // 일단 보류한다).
-  { id: 'bakery_general', ko: '빵 및 제과류(일반)', en: 'Bread & bakery products (general)', allergens: [['wheat', 'CONTAINS_AS_RAW_MATERIAL', 'high'], ['egg', 'TYPICAL_RECIPE_INCLUSION', 'medium'], ['milk', 'TYPICAL_RECIPE_INCLUSION', 'medium'], ['peanut', 'UNCONFIRMED', 'low']], note: '"제과류"는 매우 넓은 카테고리 — 제품명/제조사별 실제 확인 없이는 계란·우유 외 세부 성분 확정 불가. 공장의 견과류 일반 교차오염 가능성은 "어떤 견과류인지"조차 특정할 근거가 없어 이번엔 등록하지 않음(검증 필요로 남김, IMP-18B 다음 조사 대상)' },
+  // 일단 보류한다). [IMP-18D-1] 이번 조사에서도 "제과류" 자체를 정의하는
+  // 명확한 단일 식품공전 조항을 찾지 못해 추가 승격은 하지 않았다.
+  {
+    id: 'bakery_general', ko: '빵 및 제과류(일반)', en: 'Bread & bakery products (general)',
+    allergens: [
+      ['wheat', 'CONTAINS_AS_RAW_MATERIAL', 'high', null],
+      ['egg', 'TYPICAL_RECIPE_INCLUSION', 'medium', null],
+      ['milk', 'TYPICAL_RECIPE_INCLUSION', 'medium', null],
+      ['peanut', 'UNCONFIRMED', 'low', null],
+    ],
+    note: '"제과류"는 매우 넓은 카테고리 — 제품명/제조사별 실제 확인 없이는 계란·우유 외 세부 성분 확정 불가. 공장의 견과류 일반 교차오염 가능성은 "어떤 견과류인지"조차 특정할 근거가 없어 이번에도 등록하지 않음(검증 필요로 유지)',
+  },
 ];
 
 const INGREDIENTS_SHEET_ROWS = [];
@@ -342,19 +544,35 @@ COMPOSITE_INGREDIENTS.forEach((ing) => {
     id: ing.id, nameKo: ing.ko, nameEn: ing.en, kind: 'composite',
     reviewStatus: 'pending_expert_review', sourceId: 'EV-DEMO-HACKATHON', notes: ing.note,
   });
-  ing.allergens.forEach(([allergenId, relType, confidence]) => {
-    INGREDIENT_ALLERGENS_SHEET_ROWS.push({
-      id: `ia_${String(iaSeq++).padStart(4, '0')}`,
-      ingredientId: ing.id,
-      allergenId,
-      relationType: relType,
-      confidence,
-      evidenceId: relType === 'IS_ALLERGEN' ? '' : 'EV-DEMO-HACKATHON',
-      reviewStatus: relType === 'IS_ALLERGEN' ? 'reviewed' : 'pending_expert_review',
-      evidenceType: relType === 'IS_ALLERGEN' ? 'definitional' : 'ai_estimated_general_knowledge',
-      reviewedAt: TODAY,
-      notes: '',
-    });
+  ing.allergens.forEach(([allergenId, relType, confidence, promo]) => {
+    const isDefinitional = relType === 'IS_ALLERGEN' && !promo;
+    let row;
+    if (promo) {
+      // [IMP-18D-1] 문헌으로 실제 확인됨 — literature_reviewed로 승격.
+      row = {
+        id: `ia_${String(iaSeq++).padStart(4, '0')}`, ingredientId: ing.id, allergenId, relationType: relType, confidence,
+        evidenceId: promo.evidenceId, reviewStatus: 'literature_reviewed', evidenceType: 'literature_cross_checked',
+        reviewerType: 'ai_literature_check', evidenceScope: promo.scope, verifiedAt: '',
+        reviewedAt: TODAY_IMP18D1, notes: promo.note,
+      };
+    } else if (isDefinitional) {
+      // mustard_sauce→mustard만 여기 해당(문헌 승격 보류, 기존 definitional 예외 유지)
+      row = {
+        id: `ia_${String(iaSeq++).padStart(4, '0')}`, ingredientId: ing.id, allergenId, relationType: relType, confidence,
+        evidenceId: '', reviewStatus: 'reviewed', evidenceType: 'definitional',
+        reviewerType: 'unreviewed', evidenceScope: 'none', verifiedAt: '',
+        reviewedAt: TODAY, notes: '',
+      };
+    } else {
+      // 이번에도 근거를 못 찾아 pending 그대로 유지
+      row = {
+        id: `ia_${String(iaSeq++).padStart(4, '0')}`, ingredientId: ing.id, allergenId, relationType: relType, confidence,
+        evidenceId: 'EV-DEMO-HACKATHON', reviewStatus: 'pending_expert_review', evidenceType: 'ai_estimated_general_knowledge',
+        reviewerType: 'unreviewed', evidenceScope: 'general_culinary_knowledge', verifiedAt: '',
+        reviewedAt: TODAY, notes: '',
+      };
+    }
+    INGREDIENT_ALLERGENS_SHEET_ROWS.push(row);
   });
 });
 
@@ -365,7 +583,8 @@ ACTIVE_ALLERGENS.forEach((a) => {
   INGREDIENT_ALLERGENS_SHEET_ROWS.push({
     id: `ia_${String(iaSeq++).padStart(4, '0')}`, ingredientId: ingId, allergenId: a.id,
     relationType: 'IS_ALLERGEN', confidence: 'high', evidenceId: 'EV-KR-MFDS-2021',
-    reviewStatus: 'reviewed', evidenceType: 'definitional', reviewedAt: TODAY, notes: '',
+    reviewStatus: 'reviewed', evidenceType: 'definitional', reviewerType: 'unreviewed',
+    evidenceScope: 'none', verifiedAt: '', reviewedAt: TODAY, notes: '',
   });
 });
 
@@ -452,6 +671,7 @@ const EPIDEMIOLOGY_ROWS = [
 const CHANGELOG_ROWS = [
   { version: '1.0', date: TODAY, author: 'Claude(세션) + 사용자 검토 대기', summary: 'IMP-18B 최초 구축 — 11시트, Allergens 39(active 21 + candidate 18), 근거자료 20건, 복합식재료 19종, 역학연구 3건(완전검증 1/부분검증 2), 데모 음식 14종 재사용. Restaurant_Verification/Dish_Ingredients는 실제 확인 데이터가 없어 의도적으로 placeholder/보류 처리.' },
   { version: '1.1', date: TODAY, author: 'Claude(세션) + IMP-18C 검증 파이프라인', summary: 'IMP-18C 검증 파이프라인(scripts/validate_food_knowledge.py)이 최초 실행에서 실제 데이터 결함 3종을 발견해 수정: (1) ia_0042가 01_Allergens에 없는 가상의 id \'tree_nut_general\'을 참조(BROKEN_REFERENCE) → 근거 없는 카테고리를 임의로 만들지 않고 해당 UNCONFIRMED 행 자체를 삭제, (2) 02_Allergen_Aliases가 01_Allergens.legacyIds를 그대로 중복 미러링해 동의어 충돌(DUPLICATE_ALIAS) 발생 → legacyIds는 01에만, 02는 그 외 동의어만 갖도록 역할 분리, (3) 복합식재료의 IS_ALLERGEN(정의상 자명) 관계 4건이 evidenceId 없이 reviewed로 표시된 것은 검증기의 평가 규칙을 "definitional 관계는 외부 근거 불필요"로 보정해 해소(데이터 자체는 그대로 유지). 재실행 결과 Error 0건.' },
+  { version: '1.2', date: TODAY_IMP18D1, author: 'Claude(세션) + IMP-18D-1 문헌 검증', summary: 'IMP-18D-1: 04_Ingredient_Allergens/02_Allergen_Aliases에 reviewerType/evidenceScope/(02는 evidenceId도) 컬럼 신규 추가, 새 reviewStatus \'literature_reviewed\'(AI가 식품공전/Codex/FDA/FAO/탐사보도를 실제로 대조) 도입 — 사람 전문가 검토(\'expert_reviewed\', 예약·미사용)와 명확히 구분. 식품공전 장류/젓갈류/식용유지류(참기름)/어육가공품/김치류/카레, Codex 마요네즈(STAN 168-1989), FDA 갑각류 동의어 안내, FAO 땅콩=groundnut 확인, 게맛살 성분 탐사보도 등 실제 자료를 조사해 pending_expert_review 37건 중 20건 + definitional 4건 중 3건(새우젓/참기름/땅콩소스)을 literature_reviewed로 승격. 머스터드 관련 의심스러운 출처 표기(CXS 192-1995)는 검증 없이 인용하지 않고 기각. 동의어 15건 중 14건 승격(10건 literature_reviewed+4건 general_culinary_knowledge), "shellfish(조개류)"가 영어권 갑각류 알레르기와 혼동될 수 있다는 안전 문제를 발견해 승격 보류.' },
 ];
 
 // ---------------------------------------------------------------------
@@ -488,6 +708,8 @@ async function main() {
     { header: 'allergenId', key: 'allergenId', width: 14 }, { header: 'alias', key: 'alias', width: 24 },
     { header: 'lang', key: 'lang', width: 10 }, { header: 'reviewStatus', key: 'reviewStatus', width: 22 },
     { header: 'evidenceType', key: 'evidenceType', width: 28 }, { header: 'notes', key: 'notes', width: 60 },
+    { header: 'evidenceId', key: 'evidenceId', width: 18 }, { header: 'reviewerType', key: 'reviewerType', width: 20 },
+    { header: 'evidenceScope', key: 'evidenceScope', width: 26 }, { header: 'verifiedAt', key: 'verifiedAt', width: 12 },
   ], ALLERGEN_ALIASES);
 
   addSheet('03_Ingredients', [
@@ -503,6 +725,8 @@ async function main() {
     { header: 'confidence', key: 'confidence', width: 10 }, { header: 'evidenceId', key: 'evidenceId', width: 18 },
     { header: 'reviewStatus', key: 'reviewStatus', width: 22 }, { header: 'evidenceType', key: 'evidenceType', width: 28 },
     { header: 'reviewedAt', key: 'reviewedAt', width: 12 }, { header: 'notes', key: 'notes', width: 60 },
+    { header: 'reviewerType', key: 'reviewerType', width: 20 }, { header: 'evidenceScope', key: 'evidenceScope', width: 26 },
+    { header: 'verifiedAt', key: 'verifiedAt', width: 12 },
   ], INGREDIENT_ALLERGENS_SHEET_ROWS);
 
   addSheet('05_Dishes', [

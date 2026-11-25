@@ -38,11 +38,30 @@ SHEET_COLUMNS = {
         "registryStatus", "biologicalCategory", "regulatoryRefs", "evidenceRefs",
         "reviewStatus", "reviewedAt", "reviewedBy", "notes",
     ],
-    "02_Allergen_Aliases": ["allergenId", "alias", "lang", "reviewStatus", "evidenceType", "notes"],
+    "02_Allergen_Aliases": [
+        "allergenId", "alias", "lang", "reviewStatus", "evidenceType", "notes",
+        # [IMP-18D-1] 04와 동일한 신규 컬럼 — evidenceId가 빠져 있던 설계
+        # 공백을 바로 이 작업에서 발견해 추가했다(처음엔 reviewerType/
+        # evidenceScope/verifiedAt만 추가했다가, "international_standard
+        # 범위라면서 정작 어느 문서를 가리키는지 없다"는 모순을 검증
+        # 단계에서 스스로 발견하고 보강함).
+        "evidenceId", "reviewerType", "evidenceScope", "verifiedAt",
+    ],
     "03_Ingredients": ["id", "nameKo", "nameEn", "kind", "reviewStatus", "sourceId", "notes"],
     "04_Ingredient_Allergens": [
         "id", "ingredientId", "allergenId", "relationType", "confidence",
         "evidenceId", "reviewStatus", "evidenceType", "reviewedAt", "notes",
+        # [IMP-18D-1] 아래 3개 컬럼 신규 추가(기존 컬럼 뒤에 덧붙임 — 기존 순서는
+        # 그대로 유지해 과거 코드/사람이 "몇 번째 컬럼"으로 접근해도 안 깨지게 함).
+        # "AI가 문헌을 대조한 것"과 "사람이 실제로 검토한 것"을 구조적으로
+        # 구분하기 위한 필드다(§7 요구사항 그대로).
+        "reviewerType",   # 'unreviewed' | 'ai_literature_check' | 'human_expert'
+        "evidenceScope",  # 이 근거가 "무엇의 범위"를 증명하는지(법정 식품유형 정의 /
+                          # 국제표준 / 단일 연구사례 / 특정 제조사 제품 / 일반 상식 / 탐사보도)
+        "verifiedAt",     # 사람이 "실제로" 검토를 마친 날짜(= reviewedAt과 다름:
+                          # reviewedAt은 "이 레코드를 마지막으로 만진 날짜" 전반을 뜻하고,
+                          # verifiedAt은 오직 reviewerType='human_expert'일 때만 채워지는
+                          # "실제 전문가 서명 날짜"다)
     ],
     "05_Dishes": ["id", "nameKo", "nameEn", "category", "sourceId", "reviewStatus", "notes"],
     "06_Dish_Ingredients": ["id", "dishId", "ingredientId", "necessity", "sourceId", "notes"],
@@ -106,12 +125,32 @@ REGISTRY_STATUS_VALUES = {"active", "candidate"}  # 전부 실사용 중
 # 어느 시트에 어떤 값이 실제로 쓰이는지는 ACTUAL_REVIEW_STATUS_BY_SHEET(검증
 # 리포트 참고용)에 따로 기록한다 — 열거형 검증 자체는 "알려진 값인가"만 본다.
 REVIEW_STATUS_VALUES = {
-    "reviewed",                 # 1차 자료로 직접 검증됨
+    "reviewed",                 # 1차 자료로 직접 검증됨(법정 정의·국제표준 등, 사람 전문가 불필요할 만큼 자명/명확)
     "reviewed_as_candidate",    # 해외 규제 근거는 검증했으나 활성 등록은 아직 아님
-    "pending_expert_review",    # AI 추정 — 전문가 검토 전(04, 02 시트에 실사용)
+    # [IMP-18D-1] 신규: AI가 "공식 문헌(식품공전/Codex/탐사보도 등)을 실제로
+    # 찾아 대조"한 결과 — pending_expert_review보다는 근거가 탄탄하지만,
+    # "사람 전문가가 서명한 것"은 아니므로 reviewed와도 구분한다.
+    "literature_reviewed",
+    # [IMP-18D-1] 신규(예약, 지금 데이터엔 0건): 실제 사람 전문가가 검토를
+    # 마친 경우만 쓸 수 있다 — reviewerType='human_expert' + verifiedAt 필수
+    # (validate.py가 강제한다).
+    "expert_reviewed",
+    "pending_expert_review",    # AI 추정, 문헌 근거도 못 찾음 — 전문가 검토 전(04, 02 시트에 실사용)
     "pending_verification",     # 근거자료 자체가 미확인(10 시트에 실사용)
     "demo_content",             # 해커톤 데모 콘텐츠(05 시트에 실사용) — 품질검증 대상이 아님을 명시하는 상태
     "demo_placeholder",         # 매장 미확인(09 시트에 실사용)
+}
+
+REVIEWER_TYPE_VALUES = {"unreviewed", "ai_literature_check", "human_expert"}
+
+EVIDENCE_SCOPE_VALUES = {
+    "none",                          # 근거 범위 해당 없음(예: pending 상태)
+    "legal_food_type_definition",    # 식품공전 등 법정 식품유형 정의
+    "international_standard",        # Codex 등 국제 규격
+    "academic_study_single_case",    # 동료평가 논문의 "한 연구/한 배합" — 전체 업계로 일반화 금지
+    "manufacturer_product_specific", # 특정 제조사 제품 표시 — 다른 제조사에 일반화 금지
+    "investigative_journalism",      # 언론 탐사보도(성분 실측/업계 실태 조사)
+    "general_culinary_knowledge",    # 공식 문헌으로 확인 못한 일반 조리 상식 수준
 }
 
 RELATION_TYPE_VALUES = {
@@ -127,6 +166,10 @@ EVIDENCE_TYPE_VALUES = {
     "definitional",                    # 알레르겐=식재료 자체(자명)
     "regulatory",                      # 02 시트의 legacyIds 승계분
     "ai_estimated_general_knowledge",  # 이번 세션 AI 추정(실사용 중)
+    # [IMP-18D-1] 신규: AI가 "특정 문헌(식품공전/Codex/연구논문/탐사보도)을
+    # 실제로 찾아 대조"한 결과 — 순수 추정(ai_estimated_general_knowledge)과
+    # 구분되는, reviewStatus='literature_reviewed'에서만 쓰이는 값.
+    "literature_cross_checked",
     # 아래는 설계 문서(§7) 및 이번 요청 §7에서 명시된, 아직 실데이터엔 없는 예약값.
     "manufacturer_label",
     "restaurant_direct_confirmation",
@@ -169,6 +212,7 @@ NUMERIC_COLUMNS = {
 # kind='list' / 'ref_list'로 표시해 validate.py가 다르게 파싱하게 한다.
 FOREIGN_KEYS = [
     {"from_sheet": "02_Allergen_Aliases", "from_col": "allergenId", "to_sheet": "01_Allergens", "kind": "scalar"},
+    {"from_sheet": "02_Allergen_Aliases", "from_col": "evidenceId", "to_sheet": "08_Evidence_Sources", "kind": "scalar_optional"},
     {"from_sheet": "04_Ingredient_Allergens", "from_col": "ingredientId", "to_sheet": "03_Ingredients", "kind": "scalar"},
     {"from_sheet": "04_Ingredient_Allergens", "from_col": "allergenId", "to_sheet": "01_Allergens", "kind": "scalar"},
     {"from_sheet": "04_Ingredient_Allergens", "from_col": "evidenceId", "to_sheet": "08_Evidence_Sources", "kind": "scalar_optional"},

@@ -1,1 +1,118 @@
-[]
+{
+  "literatureBacked": [
+    {
+      "alias": "peanuts",
+      "allergenId": "peanut",
+      "evidenceId": "",
+      "evidenceScope": "general_culinary_knowledge",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "walnuts",
+      "allergenId": "walnut",
+      "evidenceId": "",
+      "evidenceScope": "general_culinary_knowledge",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "pine nut",
+      "allergenId": "pinenut",
+      "evidenceId": "",
+      "evidenceScope": "general_culinary_knowledge",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "pine nuts",
+      "allergenId": "pinenut",
+      "evidenceId": "",
+      "evidenceScope": "general_culinary_knowledge",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "crabs",
+      "allergenId": "crab",
+      "evidenceId": "",
+      "evidenceScope": "general_culinary_knowledge",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "mackerels",
+      "allergenId": "mackerel",
+      "evidenceId": "",
+      "evidenceScope": "general_culinary_knowledge",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "sesame seed",
+      "allergenId": "sesame",
+      "evidenceId": "",
+      "evidenceScope": "general_culinary_knowledge",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "groundnut",
+      "allergenId": "peanut",
+      "evidenceId": "EV-FAO-GROUNDNUT-PEANUT",
+      "evidenceScope": "international_standard",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "prawn",
+      "allergenId": "shrimp",
+      "evidenceId": "EV-FDA-SHRIMP-SYNONYM",
+      "evidenceScope": "international_standard",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "calamari",
+      "allergenId": "squid",
+      "evidenceId": "",
+      "evidenceScope": "general_culinary_knowledge",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "soy",
+      "allergenId": "soybean",
+      "evidenceId": "",
+      "evidenceScope": "general_culinary_knowledge",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "soya",
+      "allergenId": "soybean",
+      "evidenceId": "",
+      "evidenceScope": "general_culinary_knowledge",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "sulphites",
+      "allergenId": "sulfites",
+      "evidenceId": "EV-EU-1169-2011",
+      "evidenceScope": "international_standard",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    },
+    {
+      "alias": "sulfur dioxide",
+      "allergenId": "sulfites",
+      "evidenceId": "EV-KR-MFDS-2021",
+      "evidenceScope": "legal_food_type_definition",
+      "evidenceType": "literature_cross_checked",
+      "lang": "en"
+    }
+  ],
+  "note": "reviewed: 사람 전문가 또는 IMP-11 공식 마이그레이션 매핑으로 확정된 동의어. literatureBacked: AI가 FDA/FAO/Codex 등 공식 문헌을 실제로 대조해 확인했지만 사람 전문가의 서명은 받지 않은 동의어 — 둘 다 검색 매칭에는 쓸 수 있지만, 애매한 표현(예: 'shellfish'가 갑각류/연체동물 중 무엇을 가리키는지 불명확한 경우)은 이 파일에 없고 빌드 보고서의 검토 대기 목록에만 있다.",
+  "reviewed": []
+}

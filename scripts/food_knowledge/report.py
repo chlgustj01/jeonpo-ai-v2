@@ -108,10 +108,14 @@ def build_report_markdown(
         lines.append("")
         lines.append(f"- allergen-registry.json (active): {len(transformed.allergen_registry)}건")
         lines.append(f"- allergen-candidates.json (candidate): {len(transformed.allergen_candidates)}건")
-        lines.append(f"- allergen-aliases.json (reviewed만): {len(transformed.allergen_aliases)}건")
+        lines.append(
+            f"- allergen-aliases.json: reviewed {len(transformed.allergen_aliases.get('reviewed', []))}건, "
+            f"literatureBacked {len(transformed.allergen_aliases.get('literatureBacked', []))}건"
+        )
         lines.append(
             f"- ingredient-knowledge.json: ingredients {len(transformed.ingredient_knowledge.get('ingredients', []))}건, "
-            f"confirmedRelations(reviewed만) {len(transformed.ingredient_knowledge.get('confirmedRelations', []))}건"
+            f"confirmedRelations {len(transformed.ingredient_knowledge.get('confirmedRelations', []))}건, "
+            f"literatureBackedCandidates {len(transformed.ingredient_knowledge.get('literatureBackedCandidates', []))}건"
         )
         lines.append(
             f"- dishes-demo.json: dishes {len(transformed.dishes_demo.get('dishes', []))}건, "

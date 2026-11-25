@@ -115,6 +115,7 @@ def validate_extracted(
     _validate_numeric_columns(sheets, report)
     _validate_foreign_keys(sheets, by_id, report)
     _validate_evidence_requirements(sheets, report)
+    _validate_reviewer_consistency(sheets, report)
     _validate_alias_conflicts(sheets, report)
     _validate_self_reference_cycles(sheets, report)
     if shared_allergens_js_path:
@@ -180,6 +181,10 @@ def _validate_enums(sheets: dict, report: ValidationReport) -> None:
         ("09_Restaurant_Verification", "confidence", schema.CONFIDENCE_VALUES),
         ("07_Regulatory_Standards", "status", schema.REGULATORY_STATUS_VALUES),
         ("03_Ingredients", "kind", schema.INGREDIENT_KIND_VALUES),
+        ("04_Ingredient_Allergens", "reviewerType", schema.REVIEWER_TYPE_VALUES | {None, ""}),
+        ("04_Ingredient_Allergens", "evidenceScope", schema.EVIDENCE_SCOPE_VALUES | {None, ""}),
+        ("02_Allergen_Aliases", "reviewerType", schema.REVIEWER_TYPE_VALUES | {None, ""}),
+        ("02_Allergen_Aliases", "evidenceScope", schema.EVIDENCE_SCOPE_VALUES | {None, ""}),
     ]
     for sheet_name, col, allowed in enum_checks:
         for row in sheets.get(sheet_name, []):
@@ -261,7 +266,9 @@ def _validate_foreign_keys(sheets: dict, by_id: dict, report: ValidationReport) 
 # [AI 추정 ≠ 검증 완료] 이 조합이 보이면 "AI가 추정한 값을 검증된 사실처럼
 # 둔갑시키는" 가장 위험한 데이터 오염 패턴이므로 ERROR로 차단한다.
 _AI_ESTIMATED_EVIDENCE_TYPES = {"ai_estimated_general_knowledge"}
-_REVIEWED_STATUSES = {"reviewed", "reviewed_as_candidate"}
+# [IMP-18D-1] literature_reviewed/expert_reviewed도 "근거가 있다고 주장하는"
+# 상태이므로, 근거 누락/AI추정-둔갑 검사 대상에 포함시킨다.
+_REVIEWED_STATUSES = {"reviewed", "reviewed_as_candidate", "literature_reviewed", "expert_reviewed"}
 
 _EVIDENCE_PRESENCE_RULES = [
     # (sheet, reviewStatus 컬럼, 근거 컬럼, 근거컬럼이 list인지)
@@ -300,6 +307,80 @@ def _validate_evidence_requirements(sheets: dict, report: ValidationReport) -> N
                         "ERROR", "MISSING_EVIDENCE_FOR_REVIEWED", sheet_name, _row_id(row),
                         f"reviewStatus='{review_status}'인데 근거 컬럼 '{evidence_col}'이(가) 비어 있습니다.",
                     )
+
+
+# [IMP-18D-1] "AI가 문헌을 대조했다"와 "사람 전문가가 실제로 검토했다"를
+# 데이터 자체가 거짓말하지 못하게 강제하는 규칙. §7 요구사항("실제 전문가가
+# 확인하지 않은 자료를 expert_reviewed로 표시하지 않는다")을 코드로 구현한 것.
+_REVIEWER_CONSISTENCY_SHEETS = ["04_Ingredient_Allergens", "02_Allergen_Aliases"]
+
+
+def _validate_reviewer_consistency(sheets: dict, report: ValidationReport) -> None:
+    for sheet_name in _REVIEWER_CONSISTENCY_SHEETS:
+        for row in sheets.get(sheet_name, []):
+            review_status = row.get("reviewStatus")
+            reviewer_type = row.get("reviewerType") or ""
+            evidence_scope = row.get("evidenceScope") or ""
+            verified_at = row.get("verifiedAt")
+            evidence_type = row.get("evidenceType")
+
+            if review_status == "literature_reviewed":
+                if reviewer_type != "ai_literature_check":
+                    report.add(
+                        "ERROR", "LITERATURE_REVIEWED_REQUIRES_AI_LITERATURE_CHECK", sheet_name, _row_id(row),
+                        f"reviewStatus='literature_reviewed'인데 reviewerType='{reviewer_type}'입니다 "
+                        "('ai_literature_check'여야 함).",
+                    )
+                if evidence_scope in ("", "none"):
+                    report.add(
+                        "ERROR", "LITERATURE_REVIEWED_REQUIRES_EVIDENCE_SCOPE", sheet_name, _row_id(row),
+                        "reviewStatus='literature_reviewed'인데 evidenceScope가 비어있거나 'none'입니다 — "
+                        "이 근거가 무엇의 범위를 증명하는지(법정 정의/국제표준/단일 연구/제조사별/탐사보도/일반상식) "
+                        "명시해야 합니다.",
+                    )
+                if evidence_type != "literature_cross_checked":
+                    report.add(
+                        "ERROR", "LITERATURE_REVIEWED_REQUIRES_MATCHING_EVIDENCE_TYPE", sheet_name, _row_id(row),
+                        f"reviewStatus='literature_reviewed'인데 evidenceType='{evidence_type}'입니다 "
+                        "('literature_cross_checked'여야 함).",
+                    )
+                # evidenceScope가 "특정 문서를 인용한다"는 뜻의 범위(법정 정의/
+                # 국제표준/단일연구/제조사별/탐사보도)라면 그 문서를 가리키는
+                # evidenceId가 실제로 있어야 한다. 'general_culinary_knowledge'만
+                # "특정 문서 없이도 자명한 일반 상식" 취급으로 예외를 둔다.
+                _SPECIFIC_DOC_SCOPES = {
+                    "legal_food_type_definition", "international_standard",
+                    "academic_study_single_case", "manufacturer_product_specific",
+                    "investigative_journalism",
+                }
+                if evidence_scope in _SPECIFIC_DOC_SCOPES and not row.get("evidenceId"):
+                    report.add(
+                        "ERROR", "EVIDENCE_SCOPE_REQUIRES_EVIDENCE_ID", sheet_name, _row_id(row),
+                        f"evidenceScope='{evidence_scope}'는 특정 문서를 인용한다는 뜻인데 "
+                        "evidenceId가 비어 있습니다.",
+                    )
+
+            if review_status == "expert_reviewed":
+                if reviewer_type != "human_expert":
+                    report.add(
+                        "ERROR", "EXPERT_REVIEWED_REQUIRES_HUMAN_EXPERT", sheet_name, _row_id(row),
+                        f"reviewStatus='expert_reviewed'인데 reviewerType='{reviewer_type}'입니다 — "
+                        "실제 사람 전문가가 검토하지 않았다면 이 상태를 쓸 수 없습니다.",
+                    )
+                if not verified_at:
+                    report.add(
+                        "ERROR", "EXPERT_REVIEWED_REQUIRES_VERIFIED_DATE", sheet_name, _row_id(row),
+                        "reviewStatus='expert_reviewed'인데 verifiedAt(전문가 검토 일자)이 비어 있습니다.",
+                    )
+
+            # 대칭 규칙: reviewerType='human_expert'라고 적어놓고 reviewStatus는
+            # 'expert_reviewed'가 아닌 경우도 모순이다(예: pending인데 human_expert라고 우기는 것).
+            if reviewer_type == "human_expert" and review_status != "expert_reviewed":
+                report.add(
+                    "ERROR", "HUMAN_EXPERT_REQUIRES_EXPERT_REVIEWED_STATUS", sheet_name, _row_id(row),
+                    f"reviewerType='human_expert'인데 reviewStatus='{review_status}'입니다 "
+                    "('expert_reviewed'여야 함) — 전문가가 봤다면서 상태를 안 올릴 수 없습니다.",
+                )
 
 
 def _normalize_alias_text(text: str) -> str:

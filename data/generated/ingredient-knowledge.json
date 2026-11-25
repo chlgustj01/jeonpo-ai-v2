@@ -1,35 +1,11 @@
 {
   "confirmedRelations": [
     {
-      "allergenId": "shrimp",
-      "confidence": "high",
-      "evidenceId": "",
-      "id": "ia_0011",
-      "ingredientId": "saeujeot",
-      "relationType": "IS_ALLERGEN"
-    },
-    {
       "allergenId": "mustard",
       "confidence": "high",
       "evidenceId": "",
       "id": "ia_0035",
       "ingredientId": "mustard_sauce",
-      "relationType": "IS_ALLERGEN"
-    },
-    {
-      "allergenId": "sesame",
-      "confidence": "high",
-      "evidenceId": "",
-      "id": "ia_0036",
-      "ingredientId": "sesame_oil",
-      "relationType": "IS_ALLERGEN"
-    },
-    {
-      "allergenId": "peanut",
-      "confidence": "high",
-      "evidenceId": "",
-      "id": "ia_0037",
-      "ingredientId": "peanut_sauce",
       "relationType": "IS_ALLERGEN"
     },
     {
@@ -437,5 +413,329 @@
       "nameKo": "아황산류"
     }
   ],
-  "note": "confirmedRelations는 reviewStatus='reviewed'인 관계만 포함합니다. 전문가 검토 대기 중인 관계는 이 파일에 없습니다 — 빌드 보고서를 참고하세요."
+  "literatureBackedCandidates": [
+    {
+      "allergenId": "soybean",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-FOODCODE-JANGRYU",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0001",
+      "ingredientId": "ganjang",
+      "relationType": "CONTAINS_AS_RAW_MATERIAL",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "wheat",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "medium",
+      "evidenceId": "EV-KR-FOODCODE-JANGRYU",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0002",
+      "ingredientId": "ganjang",
+      "relationType": "PRODUCT_VARIANT_DEPENDENT",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "soybean",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-FOODCODE-JANGRYU",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0003",
+      "ingredientId": "doenjang",
+      "relationType": "CONTAINS_AS_RAW_MATERIAL",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "soybean",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-FOODCODE-JANGRYU",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0004",
+      "ingredientId": "gochujang",
+      "relationType": "CONTAINS_AS_RAW_MATERIAL",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "wheat",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "medium",
+      "evidenceId": "EV-KR-FOODCODE-JANGRYU",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0005",
+      "ingredientId": "gochujang",
+      "relationType": "PRODUCT_VARIANT_DEPENDENT",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "soybean",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-FOODCODE-JANGRYU",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0006",
+      "ingredientId": "ssamjang",
+      "relationType": "CONTAINS_AS_RAW_MATERIAL",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "wheat",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "medium",
+      "evidenceId": "EV-KR-FOODCODE-JANGRYU",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0007",
+      "ingredientId": "ssamjang",
+      "relationType": "PRODUCT_VARIANT_DEPENDENT",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "fish",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-FOODCODE-JEOTGAL",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0009",
+      "ingredientId": "aekjeot",
+      "relationType": "CONTAINS_AS_RAW_MATERIAL",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "shrimp",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "medium",
+      "evidenceId": "EV-KR-FOODCODE-JEOTGAL",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0010",
+      "ingredientId": "aekjeot",
+      "relationType": "PRODUCT_VARIANT_DEPENDENT",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "shrimp",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-FOODCODE-JEOTGAL",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0011",
+      "ingredientId": "saeujeot",
+      "relationType": "IS_ALLERGEN",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "fish",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "medium",
+      "evidenceId": "EV-KR-FOODCODE-KIMCHI",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0012",
+      "ingredientId": "kimchi",
+      "relationType": "TYPICAL_RECIPE_INCLUSION",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "shrimp",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "low",
+      "evidenceId": "EV-KR-FOODCODE-KIMCHI",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0013",
+      "ingredientId": "kimchi",
+      "relationType": "TYPICAL_RECIPE_INCLUSION",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "fish",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-FOODCODE-FISHPASTE",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0015",
+      "ingredientId": "eomuk",
+      "relationType": "CONTAINS_AS_RAW_MATERIAL",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "fish",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-CRABSTICK-NEWS",
+      "evidenceScope": "investigative_journalism",
+      "id": "ia_0018",
+      "ingredientId": "crab_stick",
+      "relationType": "CONTAINS_AS_RAW_MATERIAL",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "crab",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "low",
+      "evidenceId": "EV-KR-CRABSTICK-NEWS",
+      "evidenceScope": "investigative_journalism",
+      "id": "ia_0019",
+      "ingredientId": "crab_stick",
+      "relationType": "UNCONFIRMED",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "egg",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "medium",
+      "evidenceId": "EV-KR-CRABSTICK-NEWS",
+      "evidenceScope": "investigative_journalism",
+      "id": "ia_0020",
+      "ingredientId": "crab_stick",
+      "relationType": "PRODUCT_VARIANT_DEPENDENT",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "wheat",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-FOODCODE-CURRY",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0025",
+      "ingredientId": "curry_sauce",
+      "relationType": "CONTAINS_AS_RAW_MATERIAL",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "egg",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-CODEX-MAYONNAISE",
+      "evidenceScope": "international_standard",
+      "id": "ia_0028",
+      "ingredientId": "mayonnaise",
+      "relationType": "CONTAINS_AS_RAW_MATERIAL",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "shellfish",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-OYSTERSAUCE-STUDY",
+      "evidenceScope": "academic_study_single_case",
+      "id": "ia_0032",
+      "ingredientId": "oyster_sauce",
+      "relationType": "CONTAINS_AS_RAW_MATERIAL",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "wheat",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "low",
+      "evidenceId": "EV-KR-OYSTERSAUCE-STUDY",
+      "evidenceScope": "academic_study_single_case",
+      "id": "ia_0033",
+      "ingredientId": "oyster_sauce",
+      "relationType": "PRODUCT_VARIANT_DEPENDENT",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "soybean",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "low",
+      "evidenceId": "EV-KR-OYSTERSAUCE-STUDY",
+      "evidenceScope": "academic_study_single_case",
+      "id": "ia_0034",
+      "ingredientId": "oyster_sauce",
+      "relationType": "PRODUCT_VARIANT_DEPENDENT",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "sesame",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-FOODCODE-SESAMEOIL",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0036",
+      "ingredientId": "sesame_oil",
+      "relationType": "IS_ALLERGEN",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    },
+    {
+      "allergenId": "peanut",
+      "autoApplyToRiskJudgment": false,
+      "confidence": "high",
+      "evidenceId": "EV-KR-FOODCODE-PEANUTBUTTER",
+      "evidenceScope": "legal_food_type_definition",
+      "id": "ia_0037",
+      "ingredientId": "peanut_sauce",
+      "relationType": "IS_ALLERGEN",
+      "usableFor": [
+        "confirmation_candidate",
+        "staff_question_generation"
+      ]
+    }
+  ],
+  "note": "confirmedRelations: 법정 정의 등으로 확정된 관계(위험도 판정에 그대로 사용 가능). literatureBackedCandidates: 식품공전/Codex/탐사보도 등 문헌 근거는 있지만 사람 전문가 검토는 아직 없는 관계 — 확인 후보·직원 질문 생성 참고자료로만 사용하고 '이 음식에 이 성분이 확정적으로 있다'는 판정에는 쓰지 않는다(autoApplyToRiskJudgment=false). 둘 다 아닌 관계(순수 AI 추정)는 이 파일에 없음 — 빌드 보고서 참고."
 }
