@@ -1,0 +1,8 @@
+{
+  "name": "jeonpo-ai-data-tools",
+  "private": true,
+  "description": "전포 AI V2 Master DB(Excel) 생성용 1회성 도구 모음. 런타임 앱(index.html/api/dev-server.js)과는 완전히 분리된 개발 도구 패키지 — 앱 자체는 여전히 의존성 0개 구조를 유지한다.",
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  }
+}
