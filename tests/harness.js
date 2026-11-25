@@ -73,6 +73,9 @@ function loadApp(htmlPath, options = {}) {
     getElementById: () => makeElementStub(),
     querySelectorAll: () => [],
     createElement: () => makeElementStub(),
+    // [IMP-12] renderCustomAllergyBadges()가 document.createTextNode를 쓴다 —
+    // 실제 내용을 검사하진 않으므로 최소한의 더미 노드만 돌려주면 충분하다.
+    createTextNode: (text) => ({ nodeType: 3, textContent: text }),
     addEventListener: () => {},
   };
 

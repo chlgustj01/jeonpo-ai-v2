@@ -796,6 +796,239 @@
       return map;
     }, {});
 
+    // ==========================================
+    // [IMP-12] 식품 지식 DB 연동 — 검증된 동의어 기반 커스텀 알레르기 매칭
+    // ==========================================
+    //
+    // 용어 설명(초급 개발자를 위해):
+    //
+    // - Semantic Ambiguity(의미적 모호성): 같은 단어가 둘 이상의 서로 다른
+    //   의미로 해석될 수 있는 상태. 예) 영어 "shellfish"는 일상적으로
+    //   갑각류(새우/게)와 연체동물(조개/굴)을 모두 가리킬 수 있는데, 우리
+    //   서비스의 `shellfish` id는 한국 식품공전에 따라 "조개류"(연체동물)만
+    //   뜻한다(IMP-11/18D-1에서 확인). 이 둘의 의미가 어긋난다는 사실을
+    //   코드가 알아야, "글자가 똑같으니 그냥 매핑"하는 실수를 피할 수 있다.
+    //
+    // - Canonical ID(정규 식별자): "peanut/peanuts/groundnut/땅콩"처럼 같은
+    //   대상을 가리키는 여러 표현을 하나로 묶어주는 대표 식별자. 여기서는
+    //   `standardAllergens`/`ALLERGEN_REGISTRY`의 `id`가 그 역할을 한다.
+    //
+    // - Alias Mapping(동의어 매핑): "표현 → 정규 식별자"의 사전(dictionary).
+    //   `data/generated/allergen-aliases.json`이 바로 이 사전의 실제 데이터다
+    //   (IMP-18C/18D-1 파이프라인이 Food_Allergen_Master.xlsx에서 검증을
+    //   통과한 항목만 뽑아 만든 산출물).
+    //
+    // - Entity Resolution(개체 식별/동일성 해소): 사용자가 입력한 자유
+    //   텍스트가 "이미 알고 있는 어떤 개체(알레르겐)"와 같은 것인지 판별하는
+    //   작업 전반을 가리키는 데이터 엔지니어링 용어. 아래
+    //   `resolveCustomAllergyInput()`이 이 역할을 한다.
+    //
+    // - Unicode Normalization(유니코드 정규화): 겉보기엔 같아 보이는 문자열이
+    //   내부적으로는 다른 바이트로 인코딩되어 있을 수 있다(예: 합성 문자 vs
+    //   분해된 결합 문자). `.normalize('NFC')`로 "정규 결합형"으로 통일하지
+    //   않으면, 사람 눈에는 "peanut"과 "peanut"이 같아 보여도 `===` 비교가
+    //   거짓이 되는 사고가 날 수 있다.
+    //
+    // - Data Provenance(데이터 출처 추적): "이 매칭 결과가 왜 나왔는지"를
+    //   데이터 자체에 남기는 것. 아래 `mappingSource`/`dataVersion` 필드가
+    //   이 역할이다 — 나중에 지식 DB가 갱신됐을 때 "이 매칭이 그 전 버전
+    //   기준이었는지"를 추적할 수 있게 해준다.
+    //
+    // - Human-in-the-loop(사람 개입 루프): 기계가 자동으로 확신을 갖고
+    //   판단하기 애매한 경우, 사람(사용자)에게 "이 중 어느 쪽을 의미한
+    //   건가요?"라고 되물어 최종 판단을 맡기는 설계. 아래 `mappingStatus
+    //   === 'ambiguous'` + `candidateIds` + `userConfirmed` 조합이 바로
+    //   이 패턴을 구현한 것이다 — 기계가 추측해서 조용히 틀리느니, 사람에게
+    //   명확히 물어보고 그 답을 신뢰한다.
+
+    const ALLERGEN_KB_SCHEMA_VERSION = '1.0.0'; // data/generated/knowledge-manifest.json의 schemaVersion과 대조
+    const ALLERGEN_KB_PATHS = {
+      aliases: 'data/generated/allergen-aliases.json',
+      candidates: 'data/generated/allergen-candidates.json',
+      manifest: 'data/generated/knowledge-manifest.json',
+    };
+
+    // [Semantic Ambiguity] 지금 당장은 "shellfish" 하나뿐이지만, 구조상
+    // 얼마든지 더 추가할 수 있게 사전(딕셔너리) 형태로 둔다. candidateIds는
+    // "실제로 존재하는" 표준 id만 나열한다 — 새로운 상위분류 id를 임의로
+    // 만들지 않는다는 원칙(IMP-18D-1 §6) 그대로.
+    const KNOWN_AMBIGUOUS_CUSTOM_TERMS = {
+      shellfish: {
+        candidateIds: ['shrimp', 'crab', 'shellfish'],
+        // 라벨은 다국어 중 영어만 우선 지원(커스텀 입력 자체가 영어 위주라는
+        // 기존 설계를 그대로 따름) — 다국어 확장은 IMP-12 범위 밖(§13).
+        explanation:
+          'English "shellfish" can mean crustaceans (shrimp/crab) and/or molluscs ' +
+          '(clams/oysters/mussels). Our "shellfish" category only covers molluscs ' +
+          '(per Korean food labeling law) — please tell us which one you mean.',
+      },
+    };
+
+    // allergenKB: state 객체와 분리된 전역 — mapInstance/mapMarkers와 같은
+    // 패턴(페이지 전체에서 하나만 존재하는 "로드된 자원"이라 state의
+    // 사용자 프로필 데이터와 성격이 다름).
+    const allergenKB = {
+      loaded: false,
+      loadError: null,
+      manifest: null,
+      index: new Map(), // normalizedText -> { canonicalId, lang, source }
+      candidateLabelSet: new Set(), // 후보 알레르겐 id 집합(그 자체를 위험도 판정에 쓰지 않기 위한 구분용)
+    };
+
+    function normalizeAllergyText(text) {
+      // [Unicode Normalization] + 공백 정리 + 대소문자 정규화.
+      // 영어 입력(peanuts, Groundnut, PRAWN 등)을 한 형태로 모으기 위함 —
+      // 한글은 대소문자 개념이 없어 이 처리가 그냥 통과(no-op)된다.
+      return (text || '').normalize('NFC').trim().toLowerCase();
+    }
+
+    function registerAllergenKBEntry(rawText, canonicalId, lang, source) {
+      const key = normalizeAllergyText(rawText);
+      if (!key) return;
+      // 먼저 등록된 출처가 우선권을 가진다(아래 호출 순서: 표준 라벨 →
+      // legacyId → 검증된 동의어 → 후보 알레르겐 라벨) — 나중에 로드되는
+      // 출처가 이미 있는 매핑을 조용히 덮어쓰지 않게 한다.
+      if (!allergenKB.index.has(key)) {
+        allergenKB.index.set(key, { canonicalId, lang, source });
+      }
+    }
+
+    // [Fail-closed] 지식 DB 로딩이 실패해도 "성분 없음"이나 "안전 판정"으로
+    // 둔갑시키지 않는다 — allergenKB.loaded를 false로 유지한 채 조용히
+    // 끝내고, resolveCustomAllergyInput()이 그 상태를 보고 "DB 확인 불가"를
+    // 명시적으로 돌려주게 한다(§3 요구사항 그대로).
+    async function loadAllergenKnowledgeBase() {
+      try {
+        const [aliasRes, candidateRes, manifestRes] = await Promise.all([
+          fetch(ALLERGEN_KB_PATHS.aliases),
+          fetch(ALLERGEN_KB_PATHS.candidates),
+          fetch(ALLERGEN_KB_PATHS.manifest),
+        ]);
+        if (!aliasRes.ok || !candidateRes.ok || !manifestRes.ok) {
+          throw new Error(`지식 DB 파일 응답 실패(alias=${aliasRes.status}, candidate=${candidateRes.status}, manifest=${manifestRes.status})`);
+        }
+        const [aliasData, candidateData, manifestData] = await Promise.all([
+          aliasRes.json(), candidateRes.json(), manifestRes.json(),
+        ]);
+
+        // [schemaVersion 호환성] 예상한 구조와 다른 버전이면, "일단 써보고
+        // 터지는" 대신 아예 매칭 기능 자체를 비활성 상태로 둔다 — 구버전
+        // 동작(항상 번역 API만 사용)으로 안전하게 되돌아가는 것이 모양이
+        // 안 맞는 데이터로 잘못된 매칭을 만드는 것보다 낫다.
+        if (manifestData.schemaVersion !== ALLERGEN_KB_SCHEMA_VERSION) {
+          throw new Error(`스키마 버전 불일치: 예상 ${ALLERGEN_KB_SCHEMA_VERSION}, 실제 ${manifestData.schemaVersion}`);
+        }
+        allergenKB.manifest = manifestData;
+
+        // 1) 표준 활성 알레르겐 자체의 6개 언어 라벨 — 최우선 순위.
+        //    (standardAllergens는 shared/allergens.js에서 이미 파생된 것을
+        //    그대로 쓴다 — 같은 데이터를 또 하드코딩하지 않음)
+        standardAllergens.forEach(entry => {
+          ['ko', 'en', 'ja', 'zh', 'vi', 'es'].forEach(lang => {
+            if (entry[lang]) registerAllergenKBEntry(entry[lang], entry.id, lang, 'standard_label');
+          });
+        });
+        // 2) legacyId(과거 철자 등)도 같은 자격으로 등록 — 예: 'pineneut' 입력 시 pinenut으로.
+        Object.keys(LEGACY_ALLERGEN_ID_MAP).forEach(legacyId => {
+          registerAllergenKBEntry(legacyId, LEGACY_ALLERGEN_ID_MAP[legacyId], 'id_legacy', 'legacy_id');
+        });
+        // 3) IMP-18D-1에서 문헌으로 검증 완료된 동의어(alias DB).
+        const aliasRows = [...(aliasData.reviewed || []), ...(aliasData.literatureBacked || [])];
+        aliasRows.forEach(row => {
+          registerAllergenKBEntry(row.alias, row.allergenId, row.lang, 'alias_db');
+        });
+        // 4) 아직 활성화되지 않은 후보 알레르겐(18종)의 라벨 — 매핑은 되지만
+        //    "위험도 판정에 자동 사용 안 함"을 구분하기 위해 별도 Set에도 기록.
+        candidateData.forEach(entry => {
+          allergenKB.candidateLabelSet.add(entry.id);
+          Object.keys(entry.labels || {}).forEach(lang => {
+            registerAllergenKBEntry(entry.labels[lang], entry.id, lang, 'candidate_db');
+          });
+        });
+
+        allergenKB.loaded = true;
+        console.info(`[IMP-12] 알레르기 지식 DB 로드 완료 — 색인 ${allergenKB.index.size}건, 후보 ${allergenKB.candidateLabelSet.size}종 (dataVersion=${manifestData.dataVersion})`);
+      } catch (err) {
+        allergenKB.loaded = false;
+        allergenKB.loadError = err;
+        console.error('[IMP-12] 알레르기 지식 DB 로드 실패 — 표준/동의어 자동 매칭 없이 번역 API 경로로만 동작합니다:', err);
+      }
+      return allergenKB;
+    }
+
+    // 페이지 스크립트가 평가되는 즉시(onload를 기다리지 않고) 로딩을 시작한다
+    // — addCustomAllergy()는 이 Promise를 기다렸다가 매칭을 수행한다.
+    const allergenKnowledgeBaseReady = loadAllergenKnowledgeBase();
+
+    // [Entity Resolution] 사용자가 입력한 자유 텍스트 한 건을 분석해, 아래
+    // 5가지 결과 중 하나로 분류한다(이번 요청 §5의 A~E 그대로):
+    //   A 'exact_standard'   — 기존 활성 표준 성분과 정확히 일치
+    //   B 'exact_alias'      — 검증된 동의어를 통해 매핑
+    //   C 'ambiguous'        — 여러 의미로 해석될 수 있는 모호한 입력
+    //   D 'candidate_db'     — DB엔 있지만 아직 활성화 안 된 후보 성분과 일치
+    //   D 'custom_unlisted'  — 번역은 됐지만 표준/후보 어디에도 없는 새 성분
+    //   E 'translation_failed' — 번역(의미 확인) 자체가 실패
+    //   (추가) 'kb_unavailable' — 지식 DB 로딩 자체가 실패해 애초에 비교를 못 함
+    //
+    // 부분 문자열 일치나 유사도 점수는 전혀 쓰지 않는다 — 전부 "정규화 후
+    // 완전 일치"만 본다(peanut과 pinenut처럼 철자가 비슷해도 다른 성분을
+    // 같은 것으로 착각하지 않기 위함, §4 지시 그대로).
+    async function resolveCustomAllergyInput(rawText) {
+      const normalized = normalizeAllergyText(rawText);
+
+      // 0단계: 알려진 모호어는 그 무엇보다 먼저 가로챈다 — 우리 자신의
+      // standardAllergens.en 라벨("Shellfish")과 글자가 똑같더라도, 그
+      // 라벨 자체가 의미적으로 모호하다는 사실을 알고 있기 때문이다.
+      if (Object.prototype.hasOwnProperty.call(KNOWN_AMBIGUOUS_CUSTOM_TERMS, normalized)) {
+        const info = KNOWN_AMBIGUOUS_CUSTOM_TERMS[normalized];
+        return {
+          original: rawText, normalized, translated: '', canonicalId: null,
+          mappingStatus: 'ambiguous', mappingSource: 'ambiguous_term_table',
+          candidateIds: info.candidateIds.slice(), userConfirmed: false,
+          dataVersion: allergenKB.manifest ? allergenKB.manifest.dataVersion : null,
+          ambiguityExplanation: info.explanation,
+        };
+      }
+
+      if (!allergenKB.loaded) {
+        // 지식 DB 자체를 못 불러온 경우 — "성분 없음"이 아니라 "확인 불가"로
+        // 명시한다. 그래도 TTS 등에는 쓸 수 있게 번역은 시도한다.
+        const translation = await translateToKorean(rawText);
+        return {
+          original: rawText, normalized, translated: translation.text, canonicalId: null,
+          mappingStatus: 'kb_unavailable', mappingSource: null, candidateIds: [],
+          userConfirmed: false, dataVersion: null,
+        };
+      }
+
+      const hit = allergenKB.index.get(normalized);
+      if (hit) {
+        const isCandidate = allergenKB.candidateLabelSet.has(hit.canonicalId);
+        const standardEntry = standardAllergens.find(a => a.id === hit.canonicalId);
+        const koLabel = standardEntry ? standardEntry.ko : rawText; // 후보 성분은 ko 라벨이 다른 소스(candidates json)에만 있음 — 아래에서 보강
+        return {
+          original: rawText, normalized,
+          translated: koLabel,
+          canonicalId: hit.canonicalId,
+          mappingStatus: isCandidate ? 'candidate_db' : (hit.source === 'alias_db' ? 'exact_alias' : 'exact_standard'),
+          mappingSource: hit.source,
+          candidateIds: [], userConfirmed: true, // 정확 일치이므로 별도 확인 불필요
+          dataVersion: allergenKB.manifest.dataVersion,
+        };
+      }
+
+      // 어디에도 없음 — 외부 번역 API로 "의미 확인(한국어 표기)"만 시도.
+      // 이 경로가 바로 "완전히 새로운 성분(D)"과 "번역 자체 실패(E)"를
+      // 가르는 지점이다.
+      const translation = await translateToKorean(rawText);
+      return {
+        original: rawText, normalized, translated: translation.text, canonicalId: null,
+        mappingStatus: translation.success ? 'custom_unlisted' : 'translation_failed',
+        mappingSource: null, candidateIds: [], userConfirmed: false,
+        dataVersion: allergenKB.manifest.dataVersion,
+      };
+    }
+
     // Localizations
     const translations = {
       en: {
@@ -2152,6 +2385,15 @@
           }
         }, 'migrateLegacyAllergyIds');
 
+        // [IMP-12] 커스텀 알레르기 마이그레이션. {original, translated}뿐이던
+        // 과거 데이터를 새 스키마(canonicalId/mappingStatus/...)로 승격한다.
+        // 지식 DB(fetch) 로딩을 기다려야 하므로 onload 자체를 막지 않고
+        // Promise 연쇄로 비동기 처리한다 — 로드가 끝나면 알아서 다시
+        // 렌더링/저장한다(사용자는 보통 거의 즉시 반영되는 걸 보게 된다).
+        allergenKnowledgeBaseReady.then(() => migrateCustomAllergiesToCanonicalForm()).catch(err => {
+          console.error('[IMP-12] migrateCustomAllergiesToCanonicalForm 실패:', err);
+        });
+
         document.getElementById('landing-page').classList.add('hidden');
         document.getElementById('main-app').classList.remove('hidden');
       }
@@ -2529,57 +2771,171 @@
       showToast(translations[state.lang].toastAllergyClear);
     }
 
-    // Live free translation helper using Google Translate's single point endpoint
+    // Live free translation helper using Google Translate's single point endpoint.
+    // [IMP-12] 반환값을 문자열 하나에서 { text, success }로 바꿨다 — 호출하는
+    // 쪽(resolveCustomAllergyInput)이 "번역이 됐는데 우연히 원문과 같았다"와
+    // "번역 자체가 실패해서 원문을 그대로 돌려받았다"를 구분해야 하기
+    // 때문이다(기존에는 둘 다 "같은 문자열이 돌아온다"로 똑같이 보였음).
+    // 이 함수를 호출하는 곳은 아래 resolveCustomAllergyInput() 한 곳뿐이라
+    // 시그니처를 바꿔도 다른 호출부가 깨지지 않는다.
     async function translateToKorean(text) {
       try {
         const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ko&dt=t&q=${encodeURIComponent(text)}`;
         const response = await fetch(url);
         const data = await response.json();
         if (data && data[0] && data[0][0] && data[0][0][0]) {
-          return data[0][0][0]; // Translated text
+          return { text: data[0][0][0], success: true };
         }
+        return { text, success: false }; // 응답은 왔지만 모양이 예상과 다름 — 실패로 간주
       } catch (e) {
         console.error("Translation fail, falling back to original", e);
+        return { text, success: false };
       }
-      return text; // Fallback to raw text
     }
 
-    // Add Direct custom allergy with translation
+    function updateAllergyBadgeCount() {
+      const totalAllergies = state.selectedAllergies.size + state.customAllergies.length;
+      const badge = document.getElementById('allergy-badge');
+      if (totalAllergies > 0) {
+        badge.innerText = totalAllergies;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    // [IMP-12] 이미 같은 정규 알레르겐을 가리키는 항목이 있는지 확인한다 —
+    // "표준 체크박스에 이미 선택됨" 또는 "다른 커스텀 입력이 이미 같은
+    // canonicalId로 해소됨" 둘 다를 중복으로 취급한다(TC-12-18 대응:
+    // 같은 알레르기가 TTS에서 두 번 말해지는 사고를 애초에 저장 단계에서 막음).
+    function findDuplicateCanonicalAllergy(canonicalId) {
+      if (!canonicalId) return null;
+      if (state.selectedAllergies.has(canonicalId)) return { kind: 'standard' };
+      const dup = state.customAllergies.find(x => x.canonicalId === canonicalId);
+      return dup ? { kind: 'custom', entry: dup } : null;
+    }
+
+    // Add Direct custom allergy with translation(또는 표준/동의어 DB 직접 매칭)
     async function addCustomAllergy() {
       const input = document.getElementById('custom-allergy-input');
       const val = input.value.trim();
       if (!val) return;
 
-      // Show loader feedback
+      // 이미 똑같은 원본 텍스트를 등록해둔 경우는 기존 그대로 무시(대소문자 무시 비교)
+      const alreadyExistsByText = state.customAllergies.some(x => x.original.toLowerCase() === val.toLowerCase());
+      if (alreadyExistsByText) {
+        input.value = '';
+        return;
+      }
+
       const loader = document.getElementById('translation-loader');
       loader.innerText = translations[state.lang].translatingFeedback;
       loader.classList.remove('hidden');
 
-      // Translate custom text to Korean
-      const translatedVal = await translateToKorean(val);
-      
+      // [Entity Resolution] 지식 DB(IMP-18C/18D-1 ETL 산출물) 로딩이 아직
+      // 안 끝났을 수도 있으니 반드시 기다린다 — race condition 방지.
+      await allergenKnowledgeBaseReady;
+      const resolved = await resolveCustomAllergyInput(val);
+
       loader.classList.add('hidden');
 
-      // Push custom translated pair
-      const alreadyExists = state.customAllergies.some(x => x.original.toLowerCase() === val.toLowerCase());
-      if (!alreadyExists) {
-        state.customAllergies.push({
-          original: val,
-          translated: translatedVal
-        });
-        renderCustomAllergyBadges();
-        updateTtsDraft();
-        saveProfileToStorage();
-        showToast(translations[state.lang].toastCustomAdd + `${val} (${translatedVal})`);
+      if (resolved.mappingStatus !== 'ambiguous') {
+        const duplicate = findDuplicateCanonicalAllergy(resolved.canonicalId);
+        if (duplicate) {
+          input.value = '';
+          showToast(
+            duplicate.kind === 'standard'
+              ? translations[state.lang].toastCustomAlreadyStandard || '이미 표준 알레르기 목록에 선택되어 있습니다.'
+              : translations[state.lang].toastCustomAlreadyAdded || '이미 등록된 알레르기와 같은 성분입니다.'
+          );
+          return;
+        }
+      }
+
+      state.customAllergies.push(resolved);
+      renderCustomAllergyBadges();
+      updateTtsDraft();
+      saveProfileToStorage();
+
+      if (resolved.mappingStatus === 'ambiguous') {
+        showToast(translations[state.lang].toastCustomAmbiguous || `"${val}" 입력의 의미가 모호합니다 — 아래에서 구체적으로 선택해 주세요.`);
+      } else {
+        showToast(translations[state.lang].toastCustomAdd + `${val} (${resolved.translated})`);
       }
       input.value = '';
-
-      // Update allergy badge count
-      const totalAllergies = state.selectedAllergies.size + state.customAllergies.length;
-      const badge = document.getElementById('allergy-badge');
-      badge.innerText = totalAllergies;
-      badge.classList.remove('hidden');
+      updateAllergyBadgeCount();
     }
+
+    // [Human-in-the-loop] 모호한 입력에 대해 사용자가 구체적인 성분을
+    // 직접 골랐을 때 호출된다 — 기계가 추측하지 않고 사람의 답을 그대로 따른다.
+    function resolveAmbiguousCustomAllergy(originalText, chosenCanonicalId) {
+      const entry = state.customAllergies.find(x => x.original === originalText && x.mappingStatus === 'ambiguous');
+      if (!entry) return;
+
+      const duplicate = findDuplicateCanonicalAllergy(chosenCanonicalId);
+      if (duplicate) {
+        showToast(translations[state.lang].toastCustomAlreadyAdded || '이미 등록된 알레르기와 같은 성분입니다.');
+        removeCustomAllergy(originalText);
+        return;
+      }
+
+      const standardEntry = standardAllergens.find(a => a.id === chosenCanonicalId);
+      entry.canonicalId = chosenCanonicalId;
+      entry.mappingStatus = 'exact_standard';
+      entry.mappingSource = 'user_confirmed_disambiguation';
+      entry.userConfirmed = true;
+      entry.candidateIds = [];
+      if (standardEntry) entry.translated = standardEntry.ko;
+
+      renderCustomAllergyBadges();
+      updateTtsDraft();
+      saveProfileToStorage();
+      showToast(translations[state.lang].toastCustomResolved || '선택한 성분으로 등록되었습니다.');
+    }
+
+    // [IMP-12] LocalStorage 마이그레이션 — IMP-11의 migrateLegacyAllergyIds와
+    // 같은 자리(window.onload)에서 호출되지만, 지식 DB를 fetch로 불러와야
+    // 하므로 비동기다. 과거에 {original, translated}만 저장되어 있던 커스텀
+    // 알레르기 항목을 지금의 매칭 스키마(canonicalId/mappingStatus/...)로
+    // 승격시킨다 — 멱등성: 이미 mappingStatus가 있는 항목은 다시 건드리지
+    // 않으므로 몇 번을 다시 실행해도 결과가 같다(IMP-11의 TC-11-08과 같은 설계).
+    async function migrateCustomAllergiesToCanonicalForm() {
+      if (!Array.isArray(state.customAllergies) || state.customAllergies.length === 0) return;
+
+      let changed = false;
+      for (const entry of state.customAllergies) {
+        if (entry.mappingStatus) continue; // 이미 새 스키마 — 건드리지 않음(멱등)
+        changed = true;
+        const resolved = await resolveCustomAllergyInput(entry.original);
+        // 번역 자체가 새로 안 된 경로(실패/미확인)라면 과거에 저장돼있던
+        // translated 값을 그대로 보존한다 — 마이그레이션이 기존 정보를
+        // 잃어버리면 안 된다(사용자 데이터 손실 금지 원칙).
+        if (['custom_unlisted', 'translation_failed', 'kb_unavailable'].includes(resolved.mappingStatus) && entry.translated) {
+          resolved.translated = entry.translated;
+        }
+        Object.assign(entry, resolved, { original: entry.original });
+      }
+
+      if (changed) {
+        saveProfileToStorage();
+        renderCustomAllergyBadges();
+        updateTtsDraft();
+        console.info('[IMP-12] 기존 커스텀 알레르기 데이터를 표준 매칭 스키마로 마이그레이션 완료:', state.customAllergies.length, '건 확인');
+      }
+    }
+
+    // [IMP-12] mappingStatus별로 짧은 상태 아이콘 + 설명을 보여준다.
+    // 내부 id나 데이터 구조(canonicalId, evidenceScope 등)는 사용자에게
+    // 노출하지 않고, 사람이 읽을 짧은 한 줄 설명만 보여준다(§10 지시 그대로).
+    const CUSTOM_ALLERGY_STATUS_BADGES = {
+      exact_standard: { icon: '✓', title: 'Matched to a standard allergen in our list.' },
+      exact_alias: { icon: '✓', title: 'Matched via a verified synonym.' },
+      candidate_db: { icon: 'ℹ️', title: 'Known ingredient, but not yet used in automatic risk matching.' },
+      custom_unlisted: { icon: '⚠️', title: 'Not in our database yet — kept as-is for your profile & staff card.' },
+      translation_failed: { icon: '❗', title: 'Could not confirm the Korean translation — original text kept.' },
+      kb_unavailable: { icon: '❔', title: 'Could not check our allergen database right now.' },
+      ambiguous: { icon: '❓', title: 'This term could mean more than one thing — please clarify below.' },
+    };
 
     // Render small custom input allergen badges with dual-language information.
     // Built with DOM methods (textContent) instead of innerHTML so a custom
@@ -2590,23 +2946,55 @@
       container.innerHTML = '';
 
       state.customAllergies.forEach(item => {
+        const statusInfo = CUSTOM_ALLERGY_STATUS_BADGES[item.mappingStatus] || CUSTOM_ALLERGY_STATUS_BADGES.custom_unlisted;
+
         const span = document.createElement('span');
-        span.className = "inline-flex items-center gap-1.5 text-[11px] bg-vintage-clay/20 text-vintage-terracotta px-2.5 py-1 rounded-full font-bold vintage-border";
+        span.className = "inline-flex flex-col gap-1 text-[11px] bg-vintage-clay/20 text-vintage-terracotta px-2.5 py-1.5 rounded-xl font-bold vintage-border";
+        span.title = statusInfo.title;
+
+        const row = document.createElement('span');
+        row.className = 'inline-flex items-center gap-1.5';
+
+        const icon = document.createElement('span');
+        icon.textContent = statusInfo.icon;
+        row.appendChild(icon);
 
         const label = document.createElement('span');
         label.appendChild(document.createTextNode(item.original + ' '));
-        const arrow = document.createElement('span');
-        arrow.className = 'text-vintage-dark/60 font-normal';
-        arrow.textContent = `→ ${item.translated}`;
-        label.appendChild(arrow);
+        if (item.translated) {
+          const arrow = document.createElement('span');
+          arrow.className = 'text-vintage-dark/60 font-normal';
+          arrow.textContent = `→ ${item.translated}`;
+          label.appendChild(arrow);
+        }
+        row.appendChild(label);
 
         const removeBtn = document.createElement('button');
         removeBtn.className = 'hover:text-vintage-dark focus:outline-none ml-1 font-extrabold text-xs';
         removeBtn.textContent = '×';
         removeBtn.addEventListener('click', () => removeCustomAllergy(item.original));
+        row.appendChild(removeBtn);
 
-        span.appendChild(label);
-        span.appendChild(removeBtn);
+        span.appendChild(row);
+
+        // [Human-in-the-loop] 모호한 입력은 "선택지를 직접 고르는" 작은
+        // 버튼들을 바로 아래에 붙여준다 — 별도 모달 없이 기존 배지 디자인
+        // 안에서 해결(전체 UI 개편 없이 최소 기능만 추가하라는 §10 지시).
+        if (item.mappingStatus === 'ambiguous' && Array.isArray(item.candidateIds) && item.candidateIds.length > 0) {
+          const choiceRow = document.createElement('span');
+          choiceRow.className = 'inline-flex flex-wrap items-center gap-1';
+          item.candidateIds.forEach(candidateId => {
+            const standardEntry = standardAllergens.find(a => a.id === candidateId);
+            const choiceBtn = document.createElement('button');
+            choiceBtn.type = 'button';
+            choiceBtn.className = 'text-[10px] px-2 py-0.5 rounded-full bg-white/70 border border-vintage-terracotta/40 hover:bg-white';
+            choiceBtn.textContent = standardEntry ? `${standardEntry.icon || ''} ${standardEntry.ko}`.trim() : candidateId;
+            choiceBtn.addEventListener('click', () => resolveAmbiguousCustomAllergy(item.original, candidateId));
+            choiceRow.appendChild(choiceBtn);
+          });
+          span.appendChild(choiceRow);
+        }
+
         container.appendChild(span);
       });
     }
@@ -2617,14 +3005,7 @@
       renderCustomAllergyBadges();
       updateTtsDraft();
       saveProfileToStorage();
-      
-      const totalAllergies = state.selectedAllergies.size + state.customAllergies.length;
-      const badge = document.getElementById('allergy-badge');
-      if (totalAllergies > 0) {
-        badge.innerText = totalAllergies;
-      } else {
-        badge.classList.add('hidden');
-      }
+      updateAllergyBadgeCount();
       showToast(translations[state.lang].toastCustomRemove + originalText);
     }
 
@@ -2635,16 +3016,27 @@
     function getSpeechScript(dishNameText) {
       const targetDish = dishNameText || '이 요리';
       const allergyListKo = [];
-      
+      // [IMP-12] 같은 알레르겐을 표준 체크박스와 커스텀 입력 양쪽에서 중복
+      // 발화하지 않기 위한 집합(State Consistency — "같은 알레르기는 앱
+      // 어디서나 한 가지로만 취급되어야 한다"는 원칙을 TTS 문장 생성에도
+      // 적용). canonicalId가 있는 항목은 그 id로, 없는 항목(아직 매핑 안 된
+      // 커스텀 입력)은 번역된 텍스트 자체로 중복을 판정한다.
+      const spokenKeys = new Set();
+
       // Standard elements
       standardAllergens.forEach(allg => {
-        if (state.selectedAllergies.has(allg.id)) {
+        if (state.selectedAllergies.has(allg.id) && !spokenKeys.has(allg.id)) {
           allergyListKo.push(allg.ko);
+          spokenKeys.add(allg.id);
         }
       });
 
-      // Custom elements (which are already translated to Korean)
+      // Custom elements (already resolved to Korean, directly or via translation)
       state.customAllergies.forEach(c => {
+        if (c.mappingStatus === 'ambiguous' || !c.translated) return; // 아직 확인 안 된 입력은 발화하지 않음
+        const dedupeKey = c.canonicalId || `text:${normalizeAllergyText(c.translated)}`;
+        if (spokenKeys.has(dedupeKey)) return;
+        spokenKeys.add(dedupeKey);
         allergyListKo.push(c.translated);
       });
 
@@ -3021,6 +3413,37 @@
       return (dish.allergens || []).some(allg => violatingIds.includes(allg));
     }
 
+    // [IMP-12] "사용자가 이 표준 알레르겐에 알레르기가 있는가?"를 한 곳에서
+    // 판단하는 공통 헬퍼. 기존에는 checkDishSafety 두 군데에서 각각
+    // `x.translated === standardItem.ko`라는 취약한 문자열 비교를 복붙해서
+    // 썼다 — 번역 품질에 따라 "참깨"와 "참깨류"처럼 철자가 조금만 달라도
+    // 매칭에 실패하는 문제가 있었다(IMP-11/IMP-12 조사 참고). 이제
+    // `resolveCustomAllergyInput()`이 미리 정규 식별자(canonicalId)로
+    // 확정해둔 값만 비교하므로, "peanut과 pinenut처럼 철자가 비슷한 다른
+    // 성분을 같은 것으로 착각"하는 사고 자체가 구조적으로 불가능해졌다.
+    function userHasAllergyTo(allergenId) {
+      if (state.selectedAllergies.has(allergenId)) return true;
+      return state.customAllergies.some(x => x.canonicalId === allergenId && x.userConfirmed);
+    }
+
+    // [IMP-12] 모호한(아직 확인 안 된) 커스텀 알레르기 중, 이 요리의 성분과
+    // 후보가 겹치는 것이 있는지 확인한다. "모른다"를 "안전하다"로 둔갑시키지
+    // 않기 위한 보조 신호 — 확정 위험(RED)을 밀어내지는 않지만, green을
+    // 그대로 두지도 않는다(§8 지시: "정보 부족 시 안전 판정 방지").
+    function findUncertainCustomAllergyMatches(dish) {
+      const dishAllergenIds = new Set([...(dish.allergens || []), ...(dish.crossContactAllergens || [])]);
+      const matches = [];
+      state.customAllergies.forEach(c => {
+        if (c.mappingStatus !== 'ambiguous' || c.userConfirmed) return;
+        (c.candidateIds || []).forEach(candidateId => {
+          if (dishAllergenIds.has(candidateId)) {
+            matches.push({ originalInput: c.original, candidateAllergenId: candidateId });
+          }
+        });
+      });
+      return matches;
+    }
+
     function checkDishSafety(dish) {
       // [IMP-11] Fail-closed 안전장치.
       // standardAllergens는 shared/allergens.js의 ALLERGEN_REGISTRY에서 파생된다.
@@ -3057,7 +3480,7 @@
           unknownAllergenIds.push(allg);
           return;
         }
-        if (state.selectedAllergies.has(allg) || state.customAllergies.some(x => x.translated === standardItem.ko)) {
+        if (userHasAllergyTo(allg)) {
           safetyState = 'red';
           matchedDangers.push(allg);
         }
@@ -3078,7 +3501,7 @@
             unknownAllergenIds.push(allg);
             return;
           }
-          if (state.selectedAllergies.has(allg) || state.customAllergies.some(x => x.translated === standardItem.ko)) {
+          if (userHasAllergyTo(allg)) {
             safetyState = 'orange';
             isCrossContact = true;
             matchedDangers.push(allg);
@@ -3094,7 +3517,19 @@
         console.warn('[IMP-11] 표준 목록에 없는 알레르기 id 발견(무시하지 않고 보존):', unknownAllergenIds);
       }
 
-      return { safetyState, isCrossContact, matchedDangers, unknownAllergenIds };
+      // [IMP-12] 모호한 커스텀 입력(예: "shellfish")의 후보 성분이 이 요리에
+      // 있으면, "모른다"를 green으로 조용히 넘기지 않는다. 단, 이미 확정된
+      // RED는 그대로 유지한다(불확실성이 확정 위험을 밀어내지 않음 — §8 지시).
+      const uncertainMatches = findUncertainCustomAllergyMatches(dish);
+      if (uncertainMatches.length > 0 && safetyState === 'green') {
+        safetyState = 'orange';
+      }
+
+      return {
+        safetyState, isCrossContact, matchedDangers, unknownAllergenIds,
+        hasUncertainMatch: uncertainMatches.length > 0,
+        uncertainMatches,
+      };
     }
 
     // Render a list of multiple dishes detected in one photo (real AI scan
