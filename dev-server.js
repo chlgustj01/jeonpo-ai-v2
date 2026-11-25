@@ -71,6 +71,36 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // [IMP-11] Vercel은 프로젝트 루트의 모든 파일(shared/allergens.js 포함)을
+  // 별도 설정 없이 그대로 정적 파일로 서빙한다. 이 로컬 dev-server.js는 원래
+  // index.html 하나와 /api/analyze-menu만 알고 있었는데, IMP-11에서
+  // index.html이 <script src="shared/allergens.js">로 또 다른 파일을 불러오게
+  // 되면서 그 경로도 로컬에서 서빙해야 Vercel과 동작이 같아진다. 이 분기가
+  // 없으면 로컬에서는 이 파일이 항상 404가 되어, 매번 "shared 데이터 로드
+  // 실패(fail-closed)" 경로만 타게 되는 상태로 테스트하게 된다 — 실제 배포
+  // 환경과 다른 상태라 혼란스러운 버그처럼 보일 수 있다.
+  // 보안: path.normalize로 "..".을 포함한 경로 탈출을 막고, 프로젝트 루트
+  // 밖의 파일은 절대 서빙하지 않는다.
+  if (req.method === 'GET') {
+    const STATIC_CONTENT_TYPES = { '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8' };
+    const requestedPath = decodeURIComponent((req.url.split('?')[0]) || '');
+    const resolvedPath = path.normalize(path.join(__dirname, requestedPath));
+    const ext = path.extname(resolvedPath);
+
+    if (resolvedPath.startsWith(__dirname) && STATIC_CONTENT_TYPES[ext]) {
+      fs.readFile(resolvedPath, (err, data) => {
+        if (err) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not found');
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': STATIC_CONTENT_TYPES[ext] });
+        res.end(data);
+      });
+      return;
+    }
+  }
+
   res.writeHead(404, { 'Content-Type': 'text/plain' });
   res.end('Not found');
 });

@@ -18,11 +18,16 @@
 // their models. If that matters for your use case, review Gemini's terms
 // or switch to a paid tier / different provider.
 
-const ALLOWED_ALLERGEN_IDS = [
-  'peanut', 'walnut', 'pineneut', 'wheat', 'buckwheat', 'egg', 'milk',
-  'shrimp', 'crab', 'squid', 'mackerel', 'shellfish', 'soybean',
-  'pork', 'beef', 'chicken', 'peach', 'tomato', 'sulfites'
-];
+// [IMP-11] 이 목록은 더 이상 여기서 직접 손으로 관리하지 않는다.
+// 수정 전에는 이 배열과 index.html의 standardAllergens가 서로 다른 파일에
+// "복사-붙여넣기"로 각자 존재해서, fish/sesame 같은 id가 한쪽(데모 데이터)에만
+// 쓰이고 다른 쪽(여기, 그리고 index.html 표준 목록)에는 등록되지 않는 불일치가
+// 생겼다. 이제 index.html과 똑같은 shared/allergens.js를 require해서, 프론트와
+// 서버가 "정의가 다른 두 목록"이 아니라 "하나의 목록을 각자 불러와 쓰는" 구조가
+// 되게 한다. Vercel은 require로 참조된 로컬 파일을 함수 배포 시 자동으로
+// 같이 포함시키므로(File Tracing) vercel.json 등 별도 설정이 필요 없다.
+const ALLERGEN_REGISTRY = require('../shared/allergens.js');
+const ALLOWED_ALLERGEN_IDS = ALLERGEN_REGISTRY.map((entry) => entry.id);
 
 const LANGUAGE_NAMES = {
   en: 'English',

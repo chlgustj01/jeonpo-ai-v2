@@ -707,6 +707,13 @@
 
   </div>
 
+  <!-- [IMP-11] 알레르기 ID 공통 사전(Single Source of Truth).
+       아래 메인 로직 스크립트가 ALLERGEN_REGISTRY 전역을 참조하므로,
+       반드시 메인 스크립트보다 먼저(위에) 로드되어야 한다.
+       async/defer를 주지 않아 문서 순서대로 동기적으로 실행되며,
+       이는 위의 Tailwind/Leaflet <script> 태그와 같은 로딩 방식이다. -->
+  <script src="shared/allergens.js"></script>
+
   <!-- ==========================================
        JAVASCRIPT LOGIC & STATE HANDLING
        ========================================== -->
@@ -752,28 +759,42 @@
     // `locations` entry drive marker placement below.
     const JEONPO_CENTER = { lat: 35.155823, lng: 129.063712 };
 
-    // 19 Standard Food Allergens definition
-    const standardAllergens = [
-      { id: 'peanut', ko: '땅콩', en: 'Peanut', ja: 'ピーナッツ', zh: '花生', vi: 'Đậu phộng', es: 'Maní', icon: '🥜' },
-      { id: 'walnut', ko: '호두', en: 'Walnut', ja: 'クルミ', zh: '核桃', vi: 'Quả óc chó', es: 'Nuez', icon: '🪵' },
-      { id: 'pineneut', ko: '잣', en: 'Pine nut', ja: '松の実', zh: '松子', vi: 'Hạt thông', es: 'Piñón', icon: '🌲' },
-      { id: 'wheat', ko: '밀', en: 'Wheat', ja: '小麦', zh: '小麦', vi: 'Lúa mì', es: 'Trigo', icon: '🌾' },
-      { id: 'buckwheat', ko: '메밀', en: 'Buckwheat', ja: 'そば', zh: '荞麦', vi: 'Kiều mạch', es: 'Alforfón', icon: '🥣' },
-      { id: 'egg', ko: '계란', en: 'Egg', ja: '卵', zh: '鸡蛋', vi: 'Trứng', es: 'Huevo', icon: '🥚' },
-      { id: 'milk', ko: '우유', en: 'Milk', ja: '牛乳', zh: '牛奶', vi: 'Sữa', es: 'Leche', icon: '🥛' },
-      { id: 'shrimp', ko: '새우', en: 'Shrimp', ja: 'エビ', zh: '虾', vi: 'Tôm', es: 'Camarón', icon: '🦐' },
-      { id: 'crab', ko: '게', en: 'Crab', ja: 'カニ', zh: '螃蟹', vi: 'Cua', es: 'Cangrejo', icon: '🦀' },
-      { id: 'squid', ko: '오징어', en: 'Squid', ja: 'イカ', zh: '鱿鱼', vi: 'Mực', es: 'Calamar', icon: '🦑' },
-      { id: 'mackerel', ko: '고등어', en: 'Mackerel', ja: 'サバ', zh: '鲭鱼', vi: 'Cá thu', es: 'Caballa', icon: '🐟' },
-      { id: 'shellfish', ko: '조개류', en: 'Shellfish', ja: '貝類', zh: '贝类', vi: 'Nghêu sò', es: 'Mariscos', icon: '🦪' },
-      { id: 'soybean', ko: '대두', en: 'Soybean', ja: '大豆', zh: '大豆', vi: 'Đậu nành', es: 'Soya', icon: '🫘' },
-      { id: 'pork', ko: '돼지고기', en: 'Pork', ja: '豚肉', zh: '猪肉', vi: 'Thịt lợn', es: 'Cerdo', icon: '🐖' },
-      { id: 'beef', ko: '소고기', en: 'Beef', ja: '牛肉', zh: '牛肉', vi: 'Thịt bò', es: 'Res', icon: '🐂' },
-      { id: 'chicken', ko: '닭고기', en: 'Chicken', ja: '鶏肉', zh: '鸡肉', vi: 'Thịt gà', es: 'Pollo', icon: '🐓' },
-      { id: 'peach', ko: '복숭아', en: 'Peach', ja: '桃', zh: '桃子', vi: 'Đào', es: 'Melocotón', icon: '🍑' },
-      { id: 'tomato', ko: '토마토', en: 'Tomato', ja: 'トマト', zh: '西红柿', vi: 'Cà chua', es: 'Tomate', icon: '🍅' },
-      { id: 'sulfites', ko: '아황산류', en: 'Sulfites', ja: '亜硫酸塩', zh: '亚硫酸盐', vi: 'Chất sulfit', es: 'Sulfitos', icon: '🧪' }
-    ];
+    // [IMP-11] 알레르기 표준 목록의 Single Source of Truth는 이제
+    // shared/allergens.js의 ALLERGEN_REGISTRY다 (index.html보다 먼저
+    // <script src="shared/allergens.js">로 로드됨 — 아래 head 참고).
+    // standardAllergens는 그 레지스트리에서 "파생"된 값이다. 기존 코드 전체가
+    // allg.ko / allg.en / allg.icon 같은 평평한(flat) 구조로 접근하고 있어서,
+    // 레지스트리의 { id, labels:{ko,en,...}, icon } 구조를 그대로 쓰지 않고
+    // 기존과 똑같은 평평한 모양으로 한 번 변환해준다 — 이러면 아래 수백 줄의
+    // 기존 접근 코드(renderAllergiesGrid, getSpeechScript 등)를 전혀 바꾸지
+    // 않아도 된다.
+    //
+    // 레지스트리 로드 실패(파일 404 등 shared/allergens.js를 못 불러온 경우)에도
+    // 이 줄 자체가 죽지 않도록 방어한다: ALLERGEN_REGISTRY가 없으면 빈 배열로
+    // 대체한다. 그 결과 standardAllergens가 비어있게 되는데, 이 상태를
+    // "알레르기 없음"으로 착각해 checkDishSafety가 전부 안전(green)하다고
+    // 판정하면 안 된다 — 그래서 checkDishSafety 쪽에 별도의 fail-closed
+    // 가드를 둔다(아래 참고).
+    if (typeof ALLERGEN_REGISTRY === 'undefined' || !Array.isArray(ALLERGEN_REGISTRY) || ALLERGEN_REGISTRY.length === 0) {
+      console.error('[IMP-11] shared/allergens.js 로드 실패 — 알레르기 안전 매칭이 비활성화됩니다.');
+    }
+    const standardAllergens = (typeof ALLERGEN_REGISTRY !== 'undefined' ? ALLERGEN_REGISTRY : []).map(entry => ({
+      id: entry.id,
+      icon: entry.icon,
+      ko: entry.labels.ko,
+      en: entry.labels.en,
+      ja: entry.labels.ja,
+      zh: entry.labels.zh,
+      vi: entry.labels.vi,
+      es: entry.labels.es
+    }));
+
+    // [IMP-11] 레거시 id → 표준 id 역방향 매핑 (예: 'pineneut' -> 'pinenut').
+    // LocalStorage 마이그레이션에서 사용 (loadProfileFromStorage 아래 참고).
+    const LEGACY_ALLERGEN_ID_MAP = (typeof ALLERGEN_REGISTRY !== 'undefined' ? ALLERGEN_REGISTRY : []).reduce((map, entry) => {
+      (entry.legacyIds || []).forEach(legacyId => { map[legacyId] = entry.id; });
+      return map;
+    }, {});
 
     // Localizations
     const translations = {
@@ -1827,7 +1848,7 @@
           foodId: "teahouse",
           name: "Ssanghwa-cha (쌍화차)",
           ingredients: "Ginseng, jujube, cinnamon, licorice root, honey, pine nut garnish",
-          allergens: ["pineneut"],
+          allergens: ["pinenut"], // [IMP-11] 'pineneut'(오타) -> 'pinenut'(표준 id)
           crossContactAllergens: [],
           dietaryFlags: ["VEGETARIAN", "HALAL"],
           spicy: 0,
@@ -2024,10 +2045,47 @@
     // PROFILE PERSISTENCE (survives page refresh)
     // ==========================================
     const PROFILE_STORAGE_KEY = 'fitbridge_profile_v1';
+    // [IMP-11] 프로필 스키마 버전. 지금 당장은 코드에서 분기하는 곳이 없지만,
+    // 저장되는 데이터에 "이 데이터가 어느 시점의 구조인지"를 남겨두면 다음에
+    // 또 구조가 바뀔 때(예: IMP-14의 리뷰 스키마) 디버깅과 마이그레이션 분기가
+    // 훨씬 쉬워진다. 키 이름(fitbridge_profile_v1)은 기존 사용자의 데이터를
+    // 그대로 읽기 위해 바꾸지 않는다 — 버전 관리는 키가 아니라 이 필드로 한다.
+    const PROFILE_SCHEMA_VERSION = 2;
+
+    // [IMP-11] 레거시 알레르기 id를 표준 id로 변환한다.
+    //   - 변환 가능한 id(LEGACY_ALLERGEN_ID_MAP에 있는 id)는 표준 id로 바꾼다.
+    //   - 모르는 id(매핑도 없고 지금 표준 목록에도 없는 값)는 "조용히 버리지 않고"
+    //     원본 그대로 남긴다 — 등록되지 않은 id라고 해서 삭제하면 사용자가 예전에
+    //     선택했던 정보가 영문도 모른 채 사라지기 때문이다.
+    //   - 중복은 제거한다(예: 과거 데이터에 'pineneut'과 'pinenut'이 둘 다 있었다면
+    //     변환 후 'pinenut' 하나만 남는다).
+    //   - 순수 함수라 같은 입력에는 항상 같은 출력 — 몇 번을 다시 돌려도(idempotent)
+    //     결과가 똑같다(TC-11-08). 이미 표준 id인 값은 LEGACY_ALLERGEN_ID_MAP에
+    //     없으므로 그대로 유지되어, 두 번째 실행에서는 "바뀐 것이 없다"가 된다.
+    function migrateLegacyAllergyIds(rawIds) {
+      const sourceIds = Array.isArray(rawIds) ? rawIds : [];
+      const seen = new Set();
+      const migratedIds = [];
+      let changed = false;
+
+      sourceIds.forEach(rawId => {
+        const canonicalId = LEGACY_ALLERGEN_ID_MAP[rawId] || rawId;
+        if (canonicalId !== rawId) changed = true;
+        if (!seen.has(canonicalId)) {
+          seen.add(canonicalId);
+          migratedIds.push(canonicalId);
+        } else {
+          changed = true; // 중복 제거도 "데이터가 바뀌었다"로 취급해 재저장되게 함
+        }
+      });
+
+      return { ids: migratedIds, changed, original: sourceIds };
+    }
 
     function saveProfileToStorage() {
       try {
         const profileData = {
+          schemaVersion: PROFILE_SCHEMA_VERSION, // [IMP-11] 저장 시점의 데이터 구조 버전 기록
           lang: state.lang,
           dietary: state.dietary,
           nationality: state.nationality,
@@ -2078,6 +2136,21 @@
         state.selectedSpicy = typeof savedProfile.selectedSpicy === 'number' ? savedProfile.selectedSpicy : 1;
         state.selectedAllergies = new Set(savedProfile.selectedAllergies || []);
         state.customAllergies = savedProfile.customAllergies || [];
+
+        // [IMP-11] 레거시 알레르기 id 마이그레이션.
+        // 과거에 'pineneut'(오타)로 저장된 사용자 데이터를 'pinenut'(표준 id)으로
+        // 변환한다. safeRun으로 감싸서, 혹시 마이그레이션 코드 자체에 문제가 생겨도
+        // (예: shared/allergens.js 로드 실패로 LEGACY_ALLERGEN_ID_MAP이 비어있는 경우)
+        // 예외가 앱 초기화 전체를 막지 않고, state.selectedAllergies는 "원본 그대로"
+        // 유지된다 — 즉 마이그레이션 실패가 사용자의 기존 데이터를 손상시키지 않는다.
+        safeRun(() => {
+          const migration = migrateLegacyAllergyIds(Array.from(state.selectedAllergies));
+          if (migration.changed) {
+            state.selectedAllergies = new Set(migration.ids);
+            saveProfileToStorage(); // 변환된 표준 id로 즉시 재저장 — 다음 로드부터는 변환이 필요 없음
+            console.info('[IMP-11] 레거시 알레르기 id 마이그레이션 적용:', migration.original, '->', migration.ids);
+          }
+        }, 'migrateLegacyAllergyIds');
 
         document.getElementById('landing-page').classList.add('hidden');
         document.getElementById('main-app').classList.remove('hidden');
@@ -2932,8 +3005,13 @@
     // array Gemini already returns for every dish (real scans included), so
     // no new AI schema field is needed to check dietary compatibility.
     const DIETARY_VIOLATION_ALLERGENS = {
-      vegan: ['pork', 'beef', 'chicken', 'egg', 'milk', 'shrimp', 'crab', 'squid', 'mackerel', 'shellfish'],
-      vegetarian: ['pork', 'beef', 'chicken', 'shrimp', 'crab', 'squid', 'mackerel', 'shellfish'],
+      // [IMP-11] 'fish'를 신규 표준 id로 등록하면서, vegan/vegetarian 위반 목록에도
+      // 함께 추가했다. 'fish'와 같은 동물성 재료인 mackerel/shellfish 등은 이미
+      // 이 목록에 있었는데 'fish'만 빠져 있으면, 예를 들어 액젓(fish sauce)이 들어간
+      // 음식을 비건 사용자가 스캔해도 식이 위반으로 잡히지 않는 새로운 불일치가
+      // 생기기 때문이다. halal에는 생선이 허용되므로 추가하지 않는다.
+      vegan: ['pork', 'beef', 'chicken', 'egg', 'milk', 'shrimp', 'crab', 'squid', 'mackerel', 'shellfish', 'fish'],
+      vegetarian: ['pork', 'beef', 'chicken', 'shrimp', 'crab', 'squid', 'mackerel', 'shellfish', 'fish'],
       halal: ['pork']
     };
 
@@ -2944,13 +3022,42 @@
     }
 
     function checkDishSafety(dish) {
+      // [IMP-11] Fail-closed 안전장치.
+      // standardAllergens는 shared/allergens.js의 ALLERGEN_REGISTRY에서 파생된다.
+      // 그 파일이 어떤 이유로든(네트워크 차단, 배포 경로 실수 등) 로드되지 않으면
+      // standardAllergens가 빈 배열이 되고, 아래의 모든 `standardAllergens.find(...)`는
+      // 항상 undefined를 반환해 "일치하는 알레르기가 없다 = 안전(green)"으로
+      // 둔갑해버린다. 이는 "확인이 안 됐다"를 "안전하다"로 오해하게 만드는, 알레르기
+      // 안전 기능에서 가장 위험한 실패 방식이다(아무 경고 없이 위험한 음식을 그냥
+      // 먹게 할 수 있음). 그래서 매칭을 시도하기 전에 먼저 이 상태를 감지해,
+      // "판단 불가 = 가장 보수적인 위험(red)"으로 fail-closed 처리한다.
+      // (IMP-03에서 RED와 구분되는 전용 "불확실(Gray)" 단계를 UI에 추가할 예정 —
+      //  지금은 UI가 3단계뿐이라 가장 가까운 "경고가 확실히 보이는" red를 임시로 쓴다.)
+      if (!Array.isArray(standardAllergens) || standardAllergens.length === 0) {
+        return {
+          safetyState: 'red',
+          isCrossContact: false,
+          matchedDangers: ['DATA_UNAVAILABLE'],
+          dataUnavailable: true,
+          unknownAllergenIds: []
+        };
+      }
+
       let safetyState = 'green';
       let isCrossContact = false;
       const matchedDangers = [];
+      // [IMP-11] 표준 목록에 없는 id("완전히 알 수 없는 성분")를 조용히 버리지 않고
+      // 원본값을 그대로 모아둔다. 지금은 UI에서 아직 쓰지 않지만(IMP-03에서 노출 예정),
+      // 적어도 콘솔에 남겨 "정보가 유실된 게 아니라 아직 안 보여줄 뿐"임을 보장한다.
+      const unknownAllergenIds = [];
 
       (dish.allergens || []).forEach(allg => {
         const standardItem = standardAllergens.find(x => x.id === allg);
-        if (standardItem && (state.selectedAllergies.has(allg) || state.customAllergies.some(x => x.translated === standardItem.ko))) {
+        if (!standardItem) {
+          unknownAllergenIds.push(allg);
+          return;
+        }
+        if (state.selectedAllergies.has(allg) || state.customAllergies.some(x => x.translated === standardItem.ko)) {
           safetyState = 'red';
           matchedDangers.push(allg);
         }
@@ -2967,7 +3074,11 @@
       if (safetyState !== 'red' && dish.crossContactAllergens) {
         dish.crossContactAllergens.forEach(allg => {
           const standardItem = standardAllergens.find(x => x.id === allg);
-          if (standardItem && (state.selectedAllergies.has(allg) || state.customAllergies.some(x => x.translated === standardItem.ko))) {
+          if (!standardItem) {
+            unknownAllergenIds.push(allg);
+            return;
+          }
+          if (state.selectedAllergies.has(allg) || state.customAllergies.some(x => x.translated === standardItem.ko)) {
             safetyState = 'orange';
             isCrossContact = true;
             matchedDangers.push(allg);
@@ -2979,7 +3090,11 @@
         safetyState = 'orange';
       }
 
-      return { safetyState, isCrossContact, matchedDangers };
+      if (unknownAllergenIds.length > 0) {
+        console.warn('[IMP-11] 표준 목록에 없는 알레르기 id 발견(무시하지 않고 보존):', unknownAllergenIds);
+      }
+
+      return { safetyState, isCrossContact, matchedDangers, unknownAllergenIds };
     }
 
     // Render a list of multiple dishes detected in one photo (real AI scan
