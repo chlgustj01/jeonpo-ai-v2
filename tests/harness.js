@@ -123,6 +123,17 @@ function loadApp(htmlPath, options = {}) {
     vm.runInContext(registryCode, context, { filename: registryPath });
   }
 
+  // [IMP-02] 실제 index.html의 <head>와 동일한 순서로, shared/dish-schema.js도
+  // 메인 로직보다 먼저 이 context에 로드한다 — normalizeSpicy/
+  // validateAndNormalizeDishesResponse 등이 메인 스크립트 실행 시점에 이미
+  // 전역으로 존재해야 하기 때문이다(실제 <script> 로드 순서와 동일).
+  if (!options.skipDishSchema) {
+    const path = require('path');
+    const schemaPath = path.join(path.dirname(htmlPath), 'shared', 'dish-schema.js');
+    const schemaCode = fs.readFileSync(schemaPath, 'utf8');
+    vm.runInContext(schemaCode, context, { filename: schemaPath });
+  }
+
   vm.runInContext(code, context, { filename: htmlPath });
 
   return { context, localStorageStub };

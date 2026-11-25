@@ -29,6 +29,16 @@
 const ALLERGEN_REGISTRY = require('../shared/allergens.js');
 const ALLOWED_ALLERGEN_IDS = ALLERGEN_REGISTRY.map((entry) => entry.id);
 
+// [IMP-02] Gemini가 돌려준 원시 JSON은 지금까지 구조 검증 없이 그대로
+// res.status(200).json(parsed)로 클라이언트에 전달되고 있었다(이 파일을
+// 처음부터 끝까지 읽어 확인한 내용 — docs/devlog/IMP-02.md §2 참고).
+// dishes가 배열이 아니거나, 원소가 null이거나, allergens가 문자열 하나
+// ("egg")로 오거나, 등록되지 않은 알레르겐 id가 섞여 있어도 서버는 전혀
+// 걸러내지 않았다 — 검증/정규화는 지금까지 index.html 쪽에서만, 그것도
+// spicy 필드 하나만(IMP-01) 하고 있었다. shared/dish-schema.js는 이 공백을
+// 메우는 서버·프론트 공용 검증기다(index.html도 동일 모듈을 재사용).
+const { validateAndNormalizeDishesResponse } = require('../shared/dish-schema.js');
+
 const LANGUAGE_NAMES = {
   en: 'English',
   ja: 'Japanese',
@@ -164,7 +174,33 @@ Now analyze the attached photo and return the JSON described above.`;
       return;
     }
 
-    res.status(200).json(parsed);
+    // [IMP-02] 여기서부터가 이번 단계의 핵심 변경이다. 과거엔 `parsed`를
+    // 검증 없이 그대로 돌려줬다. 이제 Gemini가 JSON 파싱 자체는 성공했지만
+    // (JSON.parse가 안 터졌지만) 내용물이 계약과 다를 수 있는 모든 경우를
+    // validateAndNormalizeDishesResponse()가 걸러/정규화한다:
+    //   - dishes 필드 자체가 없거나 배열이 아님 → validationStatus: 'invalid'
+    //   - dishes: [] (AI가 정말 아무것도 못 찾음, 정상 케이스) → 'empty'
+    //   - 일부 dish 원소만 null/깨짐 → 그 원소만 버리고 나머지는 생존
+    //     ("부분 응답 생존 정책" — 메뉴판 사진 1장에 음식 5개 중 1개만
+    //     깨져도 나머지 4개를 사용자에게 그대로 보여준다), validationStatus: 'partial'
+    //   - 전부 정상 → 'valid'
+    // HTTP 상태코드는 "이 요청 자체를 처리했는가"만 나타낸다(200 OK) —
+    // "그 안의 데이터가 완전한가"는 이제 응답 바디의 validationStatus가
+    // 별도로 알려준다. 완전히 쓸 수 있는 dish가 하나도 없을 때만(invalid)
+    // 502로 응답해 클라이언트가 재시도/에러 처리를 하게 한다.
+    const validated = validateAndNormalizeDishesResponse(parsed, ALLOWED_ALLERGEN_IDS);
+
+    if (validated.validationStatus === 'invalid') {
+      console.error('[IMP-02] AI 응답이 스키마 계약을 벗어나 사용 가능한 dish가 하나도 없음:', JSON.stringify(validated.validationIssues));
+      res.status(502).json({ error: 'The AI response did not match the expected schema.', validationIssues: validated.validationIssues });
+      return;
+    }
+
+    if (validated.validationIssues.length > 0) {
+      console.warn('[IMP-02] AI 응답 일부 필드가 계약을 벗어남(정규화 후 진행):', JSON.stringify(validated.validationIssues));
+    }
+
+    res.status(200).json(validated);
   } catch (err) {
     console.error('analyze-menu handler error:', err);
     res.status(500).json({ error: 'Internal server error while analyzing the photo.' });
