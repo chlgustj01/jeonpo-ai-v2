@@ -117,3 +117,22 @@ Playwright는 개발 서버(5173)가 아닌 **프로덕션 번들(`vite preview`
 | NOT RUN | 실제 TTS 음성 품질, iOS/Android 실기기, 스크린 리더, Vanilla 재감사 | — |
 
 스크린샷: 개선 전 `web/screenshots/ux-audit/`, 개선 후 `web/screenshots/ux-improvement/`. Playwright 기본 스크린샷(`01`~`07`, `p5-*`)은 새 UI로 다시 생성했다.
+
+## 8. 메뉴판 가격·환율 통합 후 재검증 (2026-11-27)
+
+상세는 [docs/UX-IMPROVEMENT.md §9](UX-IMPROVEMENT.md#9-추가-개선--메뉴판-가격과-환율-통합-27bfa50-이후)에 있다. 환경은 §7과 같다(WSL에서 빌드, Windows Node로 Playwright 실행, 대상은 `:4175` 프로덕션 미리보기).
+
+| 구분 | 결과 |
+|---|---|
+| 타입 검사 / 빌드 / lint (WSL) | 0 errors / 성공 / 경고 3건(기존) |
+| Playwright 전체 (Mock) | **86 passed, 2 skipped**(실제 Gemini 스펙) |
+| └ 신규 `e2e/price.spec.ts` | 13 × 2 = 26 passed(반복 2회 실행에서도 통과) |
+| `tests/price-after.js` | PASS 14 / NOT RUN 1 |
+| JS 회귀 21개 + `pkg5-after` | 전부 PASS(`imp-11-repro-before`만 기존과 동일하게 exit 1) |
+| Python ETL / Master DB | 31/31 OK / PASS |
+| 실제 Gemini | 2회: 가격이 인쇄된 메뉴판 10/10 일치, 가격 열이 잘린 메뉴판 7/7 `not_shown` |
+| API 호출 측정 | 통화 5회 변경, 음식 3개 선택, 탭 4회 이동 중 분석·번역·환율 추가 호출 0회. 세션 전체 환율 요청 1회 |
+
+테스트 수정 2건(앱 동작 변경 아님):
+- `ux-improvement.spec.ts`: 번역 지연 Mock을 1.5초에서 4초로 늘렸다. 느린 모바일 실행에서 "번역 중" 표시가 사라진 뒤에 확인하던 타이밍 문제다.
+- `package5.spec.ts`: 키보드 테스트의 시작 포커스를 명시했다. 모바일 에뮬레이션에서 탭이 포커스를 옮기지 않는 경우가 있었다.
