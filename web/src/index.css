@@ -1,0 +1,53 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+/* [Package 4] Brand identity ported 1:1 from the original index.html's
+   `tailwind.config` (vintage color palette + serif/sans font stack) so the
+   React rewrite keeps the same visual identity (§6 "기존 서비스의 브랜드
+   정체성과 주요 기능은 유지한다"). Tailwind v4 reads custom colors from
+   CSS variables under `--color-*` instead of a JS config object. */
+@theme {
+  --color-vintage-cream: #FAF6F0;
+  --color-vintage-beige: #F1ECE4;
+  --color-vintage-clay: #C97A53;
+  --color-vintage-terracotta: #A65B32;
+  --color-vintage-dark: #2E2520;
+  --color-vintage-sage: #8FA89B;
+  --color-vintage-olive: #5F6F65;
+
+  --font-serif: 'Playfair Display', 'Lora', Georgia, serif;
+  --font-sans: 'Noto Sans KR', sans-serif;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-vintage-beige);
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #F1ECE4; }
+::-webkit-scrollbar-thumb { background: #C97A53; border-radius: 3px; }
+
+.vintage-border { border: 1px solid rgba(46, 37, 32, 0.12); }
+.vintage-shadow { box-shadow: 0 4px 20px -2px rgba(46, 37, 32, 0.08); }
+.vintage-glow { animation: warm-pulse 2s infinite ease-in-out; }
+@keyframes warm-pulse {
+  0%, 100% { box-shadow: 0 0 0 0px rgba(201, 122, 83, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(201, 122, 83, 0); }
+}
+
+/* [접근성 §8] 포커스 표시를 명확하게 — 브라우저 기본 outline을 지우지
+   않고 브랜드 색으로만 맞춘다. */
+:focus-visible {
+  outline: 2px solid var(--color-vintage-terracotta);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+#jeonpo-map { font-family: 'Noto Sans KR', sans-serif; }
+#jeonpo-map .leaflet-pane,
+#jeonpo-map .leaflet-control { z-index: 5; }
