@@ -69,8 +69,19 @@ function loadApp(htmlPath, options = {}) {
   const localStorageStub = makeLocalStorageStub(options.localStorageData);
 
   const windowStub = {};
+  // [IMP-03] getElementById가 호출마다 매번 새 더미를 돌려주면, 앱 코드가
+  // 어떤 id에 쓴 값을 테스트 쪽에서 "같은 id로" 다시 읽어올 방법이 없다
+  // (항상 다른 객체라서 전혀 다른 요소를 보는 것과 같음). id별로 캐시해
+  // 같은 id는 항상 같은 스텁 객체를 돌려주게 한다 — 기존 테스트는 전부
+  // id 하나당 앱 코드에서 1번만 접근했으므로 이 변경으로 깨지는 것이 없고,
+  // 이제부터는 테스트가 "앱이 특정 id에 실제로 어떤 값을 썼는지" 직접
+  // 확인할 수 있다(예: 배너 문구/클래스 검증).
+  const elementStubCache = new Map();
   const documentStub = {
-    getElementById: () => makeElementStub(),
+    getElementById: (id) => {
+      if (!elementStubCache.has(id)) elementStubCache.set(id, makeElementStub());
+      return elementStubCache.get(id);
+    },
     querySelectorAll: () => [],
     createElement: () => makeElementStub(),
     // [IMP-12] renderCustomAllergyBadges()가 document.createTextNode를 쓴다 —

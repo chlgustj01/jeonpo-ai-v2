@@ -150,13 +150,21 @@ tc('TC-11-08', '마이그레이션을 두 번 실행해도 결과가 같고 중�
 // TC-11-09: 알 수 없는 ID가 미확인 정보로 유지됨 (삭제/무시되지 않음)
 // ---------------------------------------------------------------------
 tc('TC-11-09', "표준 목록에 없는 완전히 알 수 없는 id가 무시되지 않고 unknownAllergenIds에 보존됨", () => {
+  // [IMP-03] 이 테스트는 원래 safetyState === 'green'을 기대했다 — IMP-11
+  // 당시에는 "등록 안 된 id"가 안전 판정에 전혀 영향을 주지 않고 그냥 로그만
+  // 남겼기 때문이다(코드 주석에도 "지금은 UI에서 아직 쓰지 않지만(IMP-03에서
+  // 노출 예정)"이라고 이미 적혀 있었다). IMP-03이 "등록 성분이 발견되지
+  // 않았더라도 안전하다고 표시하지 않는다"는 요구사항을 구현하면서, 미등록
+  // id가 있으면(사용자 알레르기와 직접 일치하는 게 없어도) green에서
+  // unknown으로 바뀐다 — "AI가 뭔가 언급했는데 우리가 모르는 것"은 안전
+  // 확정이 아니기 때문이다.
   const { state, checkDishSafety } = freshApp();
   state.selectedAllergies = new Set();
   state.dietary = 'none';
   state.selectedSpicy = 3;
   const result = checkDishSafety({ allergens: ['msg_unknown'], crossContactAllergens: [], spicy: 0 });
-  assert.strictEqual(result.safetyState, 'green'); // 사용자가 그 알레르기를 선택하지 않았으므로 green은 맞음
-  assert.deepStrictEqual(Array.from(result.unknownAllergenIds), ['msg_unknown']); // 그러나 값 자체는 버려지지 않아야 함
+  assert.strictEqual(result.safetyState, 'unknown');
+  assert.deepStrictEqual(Array.from(result.unknownAllergenIds), ['msg_unknown']); // 값 자체는 버려지지 않아야 함
 });
 
 tc('TC-11-09b', '레거시 마이그레이션도 전혀 모르는 id는 삭제하지 않고 원본 그대로 보존', () => {
@@ -219,7 +227,13 @@ tc('TC-11-12', "getSpeechScript가 sesame 커스텀 알레르기를 포함해도
 // ---------------------------------------------------------------------
 // TC-11-13: 공통 데이터 로딩 실패 시 잘못된 위험도 안내를 제공하지 않음 (fail-closed)
 // ---------------------------------------------------------------------
-tc('TC-11-13', 'shared/allergens.js 로드 실패 시 checkDishSafety가 green으로 거짓 안심시키지 않고 fail-closed(red)로 처리', () => {
+tc('TC-11-13', 'shared/allergens.js 로드 실패 시 checkDishSafety가 green으로 거짓 안심시키지 않고 fail-closed(error)로 처리', () => {
+  // [IMP-03] 이 테스트는 원래 safetyState === 'red'를 기대했다. 그 당시 UI는
+  // 3단계(red/orange/green)뿐이라 "판단 불가"를 가장 가까운 red로 임시
+  // 대체했기 때문이다(이 사실 자체가 IMP-11 당시 index.html 주석에 "IMP-03에서
+  // 전용 상태를 추가할 예정"이라고 이미 예고되어 있었다 — 우연한 회귀가 아니라
+  // 예정된 변경). IMP-03이 RED(확정된 직접 위험)와 분리된 ERROR(안전 점검
+  // 시스템 자체 고장) 상태를 추가하면서, 이 분기도 이제 'error'를 반환한다.
   const { context } = loadApp(INDEX_HTML, { skipAllergenRegistry: true }); // 레지스트리 로드를 의도적으로 건너뜀
   const { standardAllergens, checkDishSafety } = pick(context, ['standardAllergens', 'checkDishSafety']);
   assert.strictEqual(standardAllergens.length, 0); // 레지스트리가 없으니 표준 목록도 비어있어야 함(의도된 상태)
@@ -228,7 +242,7 @@ tc('TC-11-13', 'shared/allergens.js 로드 실패 시 checkDishSafety가 green�
   const dangerousDish = { allergens: ['peanut'], crossContactAllergens: [], spicy: 0 };
   const result = checkDishSafety(dangerousDish);
   assert.notStrictEqual(result.safetyState, 'green'); // 데이터가 없는데 "안전"이라고 하면 안 됨
-  assert.strictEqual(result.safetyState, 'red');
+  assert.strictEqual(result.safetyState, 'error');
   assert.strictEqual(result.dataUnavailable, true);
 });
 

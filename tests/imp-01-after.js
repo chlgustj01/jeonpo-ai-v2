@@ -164,6 +164,12 @@ tc('TC-01-11', "정상 맵기가 사용자 허용 수준을 초과할 때 ORANGE
 });
 
 tc('TC-01-12', "맵기 미확인 상태에서 정상값(green)으로 오인하지 않음", () => {
+  // [IMP-03] 이 테스트는 원래 safetyState === 'orange'를 기대했다 — 당시
+  // UI엔 "확정된 경미 위험"과 "그냥 모름"을 구분할 상태가 없어 orange 하나로
+  // 뭉뚱그렸기 때문이다(IMP-01 코드 주석에도 "IMP-03에서 전용 UI가 이 정보를
+  // 가져다 쓸 수 있게 한다"고 예고되어 있었다). IMP-03이 전용 'unknown' 상태를
+  // 추가하면서 "맵기 모름" 단독으로는 이제 orange가 아니라 unknown이 된다 —
+  // green이 아니라는 핵심 주장(§ 맵기를 몰라서 안전 확정일 수 없음)은 그대로다.
   const { state, checkDishSafety } = freshApp();
   state.selectedAllergies = new Set();
   state.customAllergies = [];
@@ -171,7 +177,7 @@ tc('TC-01-12', "맵기 미확인 상태에서 정상값(green)으로 오인하�
   state.selectedSpicy = 3; // 가장 매운 것까지 허용하는 사용자라도
   const result = checkDishSafety({ allergens: [], crossContactAllergens: [], spicy: null });
   A.notStrictEqual(result.safetyState, 'green'); // 맵기를 몰라서 green일 수 없음
-  A.strictEqual(result.safetyState, 'orange');
+  A.strictEqual(result.safetyState, 'unknown');
   A.strictEqual(result.hasUnknownSpicy, true);
 });
 
