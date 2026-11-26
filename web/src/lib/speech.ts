@@ -96,32 +96,33 @@ export function generateStaffQuestions(dishes: Dish[], profile: Profile): StaffQ
       const report = buildKnowledgeReportForDish(dish, 'staff_question', 'staffq', isUserAllergicTo, getUncertainIds);
       (report?.userAdvisories || []).forEach((group: any) => {
         group.findings.forEach((f: any) => {
-          if (f.originalIngredient) crossContactCandidates.add(f.originalIngredient);
+          // [UX-IMPROVEMENT] Korean DB name — the canonical token is English and
+          // must not end up inside a Korean sentence read to staff.
+          const nameKo = f.ingredientNameKo;
+          if (nameKo) crossContactCandidates.add(nameKo);
         });
       });
     } catch {
       // Knowledge DB not ready yet — fall through to the generic question below.
     }
   });
+  // [UX-IMPROVEMENT §6] Knowledge-DB relations (e.g. 참기름 → 참깨) are a
+  // raw-material relation, NOT a cross-contact finding. They are asked as
+  // "is this ingredient in the dish?"; the cross-contact question stays a
+  // general question about shared utensils/oil/space.
   const candidateList = Array.from(crossContactCandidates);
-  const crossContact =
-    candidateList.length > 0
-      ? `${dishNameKo}에 ${candidateList.join(', ')}을(를) 조리 기구나 기름, 조리 공간에서 같이 사용하는지 확인해 주실 수 있나요? 제 알레르기와 관련이 있을 수 있어서요.`
-      : `${dishNameKo}을 만들 때 저에게 위험한 알레르기 성분이 들어간 조리도구, 기름, 조리 공간을 함께 쓰는지 확인해 주실 수 있나요?`;
+  const ingredientCheck = candidateList.length > 0 ? ` 특히 ${candidateList.join(', ')}이(가) 들어가는지 알려 주세요.` : '';
+  personal += ingredientCheck;
+  const crossContact = `${dishNameKo}을(를) 만들 때 저에게 위험한 알레르기 성분이 들어간 조리도구, 기름, 조리 공간을 함께 쓰는지 확인해 주실 수 있나요?`;
 
   const comprehensiveParts: string[] = [];
   if (dietPhraseKo) comprehensiveParts.push(dietPhraseKo);
   if (allergyListKo.length > 0) comprehensiveParts.push(`저는 [ ${allergyListKo.join(', ')} ] 알레르기가 있습니다.`);
   comprehensiveParts.push(
-    `${dishNameKo}에 어떤 재료가 들어가는지, 그리고 ${
-      candidateList.length > 0
-        ? candidateList.join(', ') + ' 등이 조리 도구나 기름을 통해 같이 섞일 가능성이 있는지'
-        : '제 알레르기 성분이 조리 과정에서 같이 섞일 가능성이 있는지'
-    } 확인해 주실 수 있나요?`
+    `${dishNameKo}에 어떤 재료가 들어가는지${candidateList.length > 0 ? `(특히 ${candidateList.join(', ')})` : ''}, 그리고 제 알레르기 성분이 조리 과정에서 같이 섞일 가능성이 있는지 확인해 주실 수 있나요?`
   );
   if (profile.dietary === 'halal') comprehensiveParts.push('돼지고기나 술이 들어가는지도 함께 확인해 주세요.');
   const comprehensive = comprehensiveParts.join(' ');
-
   const hasAmbiguousCustomAllergyCaveat = profile.customAllergies.some(
     (c) => c.mappingStatus === 'ambiguous' && !c.userConfirmed
   );

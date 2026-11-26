@@ -6,7 +6,8 @@ import { useT } from '../../hooks/useT';
 import { findSimilarTravelerReviews, getUserCountry } from '../../lib/reviews';
 import { demoReviews } from '../../data/demoReviews.generated';
 import { Card, EmptyState } from '../common/ui';
-import { ReviewForm } from './ReviewForm';
+import { ReviewForm, type ReviewContext } from './ReviewForm';
+import { translateCountryName, translateTasteTag } from '../../i18n/uxExtra';
 import type { AnyReview } from '../../types';
 
 const FILTER_TABS: { key: 'similar' | 'country' | 'all'; labelKey: string }[] = [
@@ -21,8 +22,8 @@ const DIET_LABEL_KEY: Record<string, string> = { none: 'dietNone', vegan: 'dietV
 // (demoReviews, read-only) and real user reviews (reviewStore, editable)
 // are only ever merged at render time, inside this component — never in
 // storage — same separation the vanilla app's §IMP-14 devlog establishes.
-export function ReviewSection({ foodId }: { foodId: string }) {
-  const { t } = useT();
+export function ReviewSection({ foodId, context }: { foodId: string; context?: ReviewContext }) {
+  const { t, lang: uiLang } = useT();
   const nationality = useProfileStore((s) => s.nationality);
   const lang = useProfileStore((s) => s.lang);
   const selectedSpicy = useProfileStore((s) => s.selectedSpicy);
@@ -55,7 +56,7 @@ export function ReviewSection({ foodId }: { foodId: string }) {
     return (
       <Card>
         <EmptyState icon="⭐" title={t('reviewsNoneYet')} />
-        <ReviewForm foodId={foodId} editingId={null} onDoneEditing={() => setEditingId(null)} />
+        <ReviewForm foodId={foodId} editingId={null} onDoneEditing={() => setEditingId(null)} context={context} />
       </Card>
     );
   }
@@ -67,22 +68,22 @@ export function ReviewSection({ foodId }: { foodId: string }) {
 
   const tierBasisText =
     stats.tier === 'country+spice+dietary'
-      ? `${userCountry} · Lvl ${userSpiceTolerance} · ${t(DIET_LABEL_KEY[dietary])}`
+      ? `${translateCountryName(uiLang, userCountry)} · ${t('spiceLvl')} ${userSpiceTolerance} · ${t(DIET_LABEL_KEY[dietary])}`
       : stats.tier === 'country+spice'
-        ? `${userCountry} · Lvl ${userSpiceTolerance}`
+        ? `${translateCountryName(uiLang, userCountry)} · ${t('spiceLvl')} ${userSpiceTolerance}`
         : stats.tier === 'country'
-          ? userCountry
+          ? translateCountryName(uiLang, userCountry)
           : t('reviewsFilterAll');
 
   return (
     <Card className="space-y-4">
       <div className="flex items-center gap-2">
         <span className="text-xl" aria-hidden="true">⭐</span>
-        <h3 className="font-serif text-lg font-bold text-vintage-dark">Traveler Reviews</h3>
+        <h3 className="font-serif text-lg font-bold text-vintage-dark">{t('reviewsTitle')}</h3>
       </div>
 
       <div className="bg-vintage-beige/40 p-3.5 rounded-xl grid grid-cols-2 gap-2.5 text-center">
-        <StatTile value={stats.strongPct !== null ? `${stats.strongPct}%` : '—'} label={`${userCountry} ${t('reviewsStrongLabel')}`} color="text-vintage-terracotta" />
+        <StatTile value={stats.strongPct !== null ? `${stats.strongPct}%` : '—'} label={`${translateCountryName(uiLang, userCountry)} ${t('reviewsStrongLabel')}`} color="text-vintage-terracotta" />
         <StatTile value={`${stats.similarReviews.length}`} label={t('reviewsSimilarTravelersLabel')} color="text-vintage-dark" />
         <StatTile value={`${stats.avgSpice} / 5`} label={t('reviewsAvgSpiceLabel')} color="text-vintage-clay" />
         <StatTile value={stats.againPct !== null ? `${stats.againPct}%` : '—'} label={t('reviewsWouldAgainLabel')} color="text-vintage-sage" />
@@ -96,7 +97,7 @@ export function ReviewSection({ foodId }: { foodId: string }) {
             type="button"
             onClick={() => setFilterMode(f.key)}
             aria-pressed={filterMode === f.key}
-            className={`flex-1 min-h-[40px] py-1.5 text-[11px] font-semibold rounded-lg transition ${
+            className={`flex-1 min-h-[44px] py-1.5 text-[11px] leading-tight font-semibold rounded-lg transition ${
               filterMode === f.key ? 'bg-white text-vintage-dark shadow-sm' : 'text-vintage-olive hover:bg-white/50'
             }`}
           >
@@ -117,7 +118,7 @@ export function ReviewSection({ foodId }: { foodId: string }) {
       </div>
 
       <p className="text-[10px] text-vintage-olive text-center">{t('reviewsSafetyDisclaimer')}</p>
-      <ReviewForm foodId={foodId} editingId={editingId} onDoneEditing={() => setEditingId(null)} />
+      <ReviewForm foodId={foodId} editingId={editingId} onDoneEditing={() => setEditingId(null)} context={context} />
     </Card>
   );
 }
@@ -132,7 +133,7 @@ function StatTile({ value, label, color }: { value: string; label: string; color
 }
 
 function ReviewCard({ review, foodId, onEdit }: { review: AnyReview; foodId: string; onEdit: (id: string) => void }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const deleteReview = useReviewStore((s) => s.deleteReview);
   const isUserReview = 'isUserReview' in review && review.isUserReview;
   const stars = '⭐'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
@@ -142,16 +143,25 @@ function ReviewCard({ review, foodId, onEdit }: { review: AnyReview; foodId: str
       <div className="flex justify-between items-start">
         <div>
           <span className="font-bold text-vintage-dark text-sm block">
-            {review.user}{' '}
-            {isUserReview && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-vintage-sage/20 text-vintage-sage">
+            {isUserReview && review.user === 'You' ? t('reviewYouName') : review.user}{' '}
+            {isUserReview ? (
+              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-vintage-sage/20 text-vintage-dark">
                 📱 {t('reviewYourBadge')}
+              </span>
+            ) : (
+              // [UX-IMPROVEMENT] Demo seed reviews are labeled as samples so they
+              // are never mistaken for real travelers' records.
+              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-900 border border-purple-200">
+                🧪 {t('demoReviewBadge')}
               </span>
             )}
           </span>
-          <span className="text-[10px] text-vintage-olive">
-            {review.country} • Lvl {review.spiceTolerance}
-            {review.dietary && review.dietary !== 'none' ? ` • ${review.dietary}` : ''}
+          {isUserReview && 'locationName' in review && review.locationName && (
+            <span className="block text-[11px] text-vintage-olive">📍 {review.locationName}</span>
+          )}
+          <span className="text-[11px] text-vintage-olive">
+            {translateCountryName(lang, review.country)} • {t('spiceLvl')} {review.spiceTolerance}
+            {review.dietary && review.dietary !== 'none' ? ` • ${DIET_LABEL_KEY[review.dietary] ? t(DIET_LABEL_KEY[review.dietary]) : review.dietary}` : ''}
           </span>
         </div>
         <span className="text-xs" aria-label={`${review.rating} / 5`}>{stars}</span>
@@ -161,20 +171,20 @@ function ReviewCard({ review, foodId, onEdit }: { review: AnyReview; foodId: str
         <div className="flex flex-wrap gap-1">
           {review.tasteTags.map((tag) => (
             <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded-full bg-vintage-beige text-vintage-olive">
-              {tag}
+              {translateTasteTag(lang, tag)}
             </span>
           ))}
         </div>
       )}
       <div className="flex items-center justify-between pt-1">
-        <span className="text-[10px] font-mono text-vintage-clay">🌶️ Lvl {review.spiceFelt}</span>
+        <span className="text-[11px] font-mono text-vintage-clay">🌶️ {t('spiceLvl')} {review.spiceFelt}</span>
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${review.wouldAgain ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
           {t(review.wouldAgain ? 'reviewsWouldAgainBadge' : 'reviewsWouldAvoidBadge')}
         </span>
       </div>
       {isUserReview && 'id' in review && (
         <div className="flex gap-1 pt-1">
-          <button type="button" onClick={() => onEdit(review.id)} className="text-[10px] min-h-[28px] px-2 rounded-full bg-vintage-dark/5 text-vintage-dark hover:bg-vintage-dark/10">
+          <button type="button" onClick={() => onEdit(review.id)} className="text-xs min-h-[44px] px-3 rounded-full bg-vintage-dark/5 text-vintage-dark hover:bg-vintage-dark/10">
             {t('reviewEditBtn')}
           </button>
           <button
@@ -182,7 +192,7 @@ function ReviewCard({ review, foodId, onEdit }: { review: AnyReview; foodId: str
             onClick={() => {
               if (window.confirm(t('reviewDeleteConfirm'))) deleteReview(foodId, review.id);
             }}
-            className="text-[10px] min-h-[28px] px-2 rounded-full bg-red-50 text-red-700 hover:bg-red-100"
+            className="text-xs min-h-[44px] px-3 rounded-full bg-red-50 text-red-700 hover:bg-red-100"
           >
             {t('reviewDeleteBtn')}
           </button>

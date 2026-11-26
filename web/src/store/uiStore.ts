@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { StaffQuestionType } from '../types';
 
 // [Package 4 §6] Only 3 tabs now — the old standalone "TTS" tab's job
@@ -9,6 +10,16 @@ import type { StaffQuestionType } from '../types';
 // just no longer each pinned to their own always-visible tab slot when
 // they're really sub-steps of one flow.
 export type TabName = 'map' | 'scanner' | 'exchange';
+
+// [UX-IMPROVEMENT] URL hash per tab (Back button + reload keep the tab).
+const TAB_HASH: Record<TabName, string> = { map: '#/map', scanner: '#/menu', exchange: '#/exchange' };
+export function hashForTab(tab: TabName): string {
+  return TAB_HASH[tab];
+}
+export function tabFromHash(hash: string): TabName | null {
+  const hit = (Object.keys(TAB_HASH) as TabName[]).find((k) => TAB_HASH[k] === hash);
+  return hit || null;
+}
 
 interface ToastState {
   message: string;
@@ -36,7 +47,9 @@ interface UIState {
 
 let toastCounter = 0;
 
-export const useUIStore = create<UIState>((set) => ({
+// [UX-IMPROVEMENT] activeTab + selectedLocationId survive a reload for this
+// browser tab only (sessionStorage) — nothing personal is stored here.
+export const useUIStore = create<UIState>()(persist((set) => ({
   activeTab: 'map',
   profileModalOpen: false,
   toast: null,
@@ -59,4 +72,8 @@ export const useUIStore = create<UIState>((set) => ({
   selectLocation: (id) => set({ selectedLocationId: id, reviewsFilterMode: 'similar' }),
   setReviewsFilterMode: (mode) => set({ reviewsFilterMode: mode }),
   setMapFilter: (f) => set({ currentMapFilter: f }),
+}), {
+  name: 'fitbridge_ui_session_v1',
+  storage: createJSONStorage(() => sessionStorage),
+  partialize: (s) => ({ activeTab: s.activeTab, selectedLocationId: s.selectedLocationId, currentMapFilter: s.currentMapFilter }),
 }));

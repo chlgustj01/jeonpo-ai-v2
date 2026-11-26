@@ -121,7 +121,8 @@ test('menu coverage notice + ingredient-source label are shown for a partial men
   await scan(page, MENU);
   await expect(page.getByText('Showing 2 of about 14 items', { exact: false })).toBeVisible({ timeout: 10000 });
   await expect(page.getByText('AI estimates based on the dish name', { exact: false })).toBeVisible();
-  await expect(page.getByText('AI estimate', { exact: true })).toHaveCount(2);
+  // [UX-IMPROVEMENT] The source chip is shown in the selected dish's detail (one dish at a time).
+  await expect(page.getByText('AI estimate', { exact: true })).toHaveCount(1);
   await page.screenshot({ path: 'screenshots/p5-02-menu-coverage.png', fullPage: true });
 });
 
@@ -129,8 +130,9 @@ test('GREEN result is worded as "no match", never as guaranteed safe', async ({ 
   await page.route('**/api/analyze-menu', (route) => fulfillJson(route, 200, analyzeBody([dish('rice', 'Rice', '공기밥', [], { spicy: 0 })])));
   await gotoScanner(page);
   await scan(page);
-  await expect(page.getByText('No Match With Your Profile')).toBeVisible({ timeout: 10000 });
-  await expect(page.getByText('not a safety guarantee', { exact: false })).toBeVisible();
+  // The banner title; the dish detail repeats the same wording as its reason.
+  await expect(page.getByText('No Match With Your Profile').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('not a safety guarantee', { exact: false }).first()).toBeVisible();
   await expect(page.getByText(/align perfectly/i)).toHaveCount(0);
 });
 

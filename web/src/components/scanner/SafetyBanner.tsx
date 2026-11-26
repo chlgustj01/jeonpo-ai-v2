@@ -1,4 +1,5 @@
 import { useT } from '../../hooks/useT';
+import { getAllergenDisplayLabel } from '../../lib/display';
 import type { SafetyResult } from '../../types';
 
 // Ports renderSafetyBanner()/SAFETY_BANNER_STYLES (§IMP-03/15). §7 of this
@@ -43,8 +44,14 @@ const STATE_BADGE: Record<SafetyResult['safetyState'], string> = {
   error: 'ERROR',
 };
 
-export function SafetyBanner({ result, sourceNoteKey }: { result: SafetyResult; sourceNoteKey: 'sourceAiScanNote' | 'sourceDemoNote' }) {
-  const { t } = useT();
+// [UX-IMPROVEMENT] Matched items are shown with localized labels (was the raw
+// id upper-cased after a hardcoded English "Matched:"), and an optional
+// summary names the dishes that need attention.
+const DIET_KEY: Record<string, string> = { vegan: 'dietVegan', halal: 'dietHalal', vegetarian: 'dietVegetarian' };
+
+export function SafetyBanner({ result, sourceNoteKey, summary }: { result: SafetyResult; sourceNoteKey: 'sourceAiScanNote' | 'sourceDemoNote'; summary?: string }) {
+  const { t, lang } = useT();
+  const matched = result.matchedDangers.map((d) => (DIET_KEY[d] ? t(DIET_KEY[d]) : getAllergenDisplayLabel(lang, d))).join(', ');
   const style = STYLES[result.safetyState];
 
   let title: string;
@@ -55,11 +62,11 @@ export function SafetyBanner({ result, sourceNoteKey }: { result: SafetyResult; 
   } else if (result.safetyState === 'orange') {
     title = t('warnTitle');
     desc = result.isCrossContact
-      ? `${t('crossDesc')} (${result.matchedDangers.join(', ').toUpperCase()})`
+      ? `${t('crossDesc')} (${t('matchedLabel')}: ${matched})`
       : t('warnDesc');
   } else if (result.safetyState === 'red') {
     title = t('dangerTitle');
-    desc = `${t('dangerDesc')} (Matched: ${result.matchedDangers.join(', ').toUpperCase()})`;
+    desc = `${t('dangerDesc')} (${t('matchedLabel')}: ${matched})`;
   } else if (result.safetyState === 'unknown') {
     title = t('unknownTitle');
     desc = t('unknownDesc');
@@ -89,6 +96,7 @@ export function SafetyBanner({ result, sourceNoteKey }: { result: SafetyResult; 
             {title}
           </p>
           <p className="text-xs mt-0.5 leading-relaxed">{desc}</p>
+          {summary && <p className="text-sm font-bold mt-1.5">{summary}</p>}
         </div>
       </div>
     </div>

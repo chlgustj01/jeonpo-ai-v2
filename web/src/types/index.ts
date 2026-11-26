@@ -34,6 +34,10 @@ export interface CustomAllergyEntry {
 // between the two: only name/ingredients/eatingMethod/description/
 // culturalNote are translation targets.
 export interface Dish {
+  // [UX-IMPROVEMENT] Stable per-analysis id ("<analysisId>#<index>"). foodId is
+  // a slug of the English name, so two menu entries with the same name share
+  // it — selection must never rely on the name.
+  uid?: string;
   foodId: string;
   name: string; // display name (combined "Translated (한국어)" once translated)
   nameKo: string;
@@ -114,6 +118,11 @@ export interface UserReview {
   wouldAgain: boolean;
   createdAt: number;
   editedAt?: number;
+  // [UX-IMPROVEMENT] Optional links (older saved reviews simply lack them).
+  source?: 'ai_scan' | 'demo_location' | 'map';
+  locationId?: number;
+  locationName?: string;
+  dishNameKo?: string;
 }
 
 // Demo seed reviews (REVIEWS_DATABASE) share the same display shape but
@@ -131,6 +140,13 @@ export interface DemoReview {
 }
 
 export type AnyReview = (UserReview | DemoReview) & { isUserReview?: boolean };
+
+// [UX-IMPROVEMENT] The restaurant a scan belongs to (from the map), if any.
+export interface LocationContext {
+  id: number;
+  name: string;
+  nameKo: string;
+}
 
 export interface StaffQuestions {
   general: string;

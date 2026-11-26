@@ -5,6 +5,7 @@ import { DietSelector, NationalityInput, SpicySelector } from './ProfileFields';
 import { AllergyGrid } from './AllergyGrid';
 import { CustomAllergyInput } from './CustomAllergyInput';
 import { LanguageSelector } from './LanguageSelector';
+import { NoAllergiesToggle } from './NoAllergiesToggle';
 
 // Ports openProfileModal()/closeProfileModal(). §4 of this package's
 // request groups "사용자 프로필" and "알레르기 선택 및 커스텀 알레르기
@@ -32,6 +33,7 @@ export function ProfileModal() {
           <AllergyGrid />
         </div>
         <CustomAllergyInput />
+        <NoAllergiesToggle />
       </div>
     </Modal>
   );

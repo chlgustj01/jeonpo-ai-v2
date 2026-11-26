@@ -6,15 +6,27 @@ import { useT } from '../../hooks/useT';
 import { getUserCountry } from '../../lib/reviews';
 import { Button } from '../common/ui';
 
+// [UX-IMPROVEMENT] Where this record comes from: the analyzed dish and (if the
+// scan started from the map) the restaurant. Stored as optional extra fields on
+// the same review object, so the IMP-14 localStorage format stays compatible.
+export interface ReviewContext {
+  source?: 'ai_scan' | 'demo_location' | 'map';
+  locationId?: number;
+  locationName?: string;
+  dishNameKo?: string;
+}
+
 // Ports submitReview()/editReview()/cancelEditReview() (§IMP-14).
 export function ReviewForm({
   foodId,
   editingId,
   onDoneEditing,
+  context,
 }: {
   foodId: string;
   editingId: string | null;
   onDoneEditing: () => void;
+  context?: ReviewContext;
 }) {
   const { t } = useT();
   const nationality = useProfileStore((s) => s.nationality);
@@ -64,6 +76,9 @@ export function ReviewForm({
           spiceFelt,
           text,
           wouldAgain: rating >= 3,
+          ...(context?.source ? { source: context.source } : {}),
+          ...(context?.locationId !== undefined ? { locationId: context.locationId, locationName: context.locationName } : {}),
+          ...(context?.dishNameKo ? { dishNameKo: context.dishNameKo } : {}),
         });
         showToast(t('reviewAddedToast'));
       }
@@ -90,7 +105,7 @@ export function ReviewForm({
           value={rating}
           onChange={(e) => setRating(Number(e.target.value))}
           className="min-h-[44px] text-xs p-2 rounded-lg bg-white vintage-border"
-          aria-label="Rating"
+          aria-label={t('ratingAria')}
         >
           <option value={5}>⭐ 5</option>
           <option value={4}>⭐ 4</option>
@@ -102,7 +117,7 @@ export function ReviewForm({
           value={spiceFelt}
           onChange={(e) => setSpiceFelt(Number(e.target.value))}
           className="min-h-[44px] text-xs p-2 rounded-lg bg-white vintage-border"
-          aria-label="Spice felt"
+          aria-label={t('spiceFeltAria')}
         >
           <option value={1}>🌶️ 1</option>
           <option value={2}>🌶️ 2</option>
@@ -115,7 +130,8 @@ export function ReviewForm({
         value={text}
         onChange={(e) => setText(e.target.value)}
         required
-        placeholder="Share your experience..."
+        placeholder={t('reviewPlaceholder')}
+        aria-label={t('reviewPlaceholder')}
         className="w-full h-16 text-xs p-2.5 rounded-lg bg-white vintage-border focus:outline-none focus:ring-1 focus:ring-vintage-clay"
       />
       <div className="flex gap-2">

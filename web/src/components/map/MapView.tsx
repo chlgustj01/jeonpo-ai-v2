@@ -7,7 +7,10 @@ import { useT } from '../../hooks/useT';
 import { demoMatchObjToDish } from '../../lib/demoDish';
 import { Button } from '../common/ui';
 import { ReviewSection } from '../reviews/ReviewSection';
-import type { Lang } from '../../types';
+import { useProfileStore } from '../../store/profileStore';
+import { getAllergenDisplayLabel } from '../../lib/display';
+import { formatTemplate } from '../../i18n';
+import type { Lang, LocationContext } from '../../types';
 
 const JEONPO_CENTER: [number, number] = [35.155823, 129.063712];
 
@@ -31,6 +34,7 @@ export function MapView() {
   const selectLocationInStore = useUIStore((s) => s.selectLocation);
   const setActiveTab = useUIStore((s) => s.setActiveTab);
   const showDemoDish = useScanStore((s) => s.showDemoDish);
+  const startLocationScan = useScanStore((s) => s.startLocationScan);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -89,9 +93,22 @@ export function MapView() {
 
   const selectedLocation: LocationEntry | undefined = locations.find((l) => l.id === selectedLocationId);
 
+  const toContext = (loc: LocationEntry): LocationContext => ({ id: loc.id, name: loc.name, nameKo: loc.nameKo });
+
+  // [UX-IMPROVEMENT P1] "Scan This Restaurant's Menu" now opens the real
+  // photo upload for this restaurant (it used to show canned demo data under
+  // the same label as the real scan button — docs/UX-AUDIT.md U5). The
+  // restaurant stays attached to the scan, its result and any review.
   const onScanHere = () => {
     if (!selectedLocation) return;
-    showDemoDish(demoMatchObjToDish(selectedLocation.matchedFoodObj));
+    startLocationScan(toContext(selectedLocation));
+    setActiveTab('scanner');
+  };
+
+  // The demo result is still available, but as a clearly separate action.
+  const onDemo = () => {
+    if (!selectedLocation) return;
+    showDemoDish(demoMatchObjToDish(selectedLocation.matchedFoodObj), toContext(selectedLocation));
     setActiveTab('scanner');
   };
 
@@ -109,7 +126,7 @@ export function MapView() {
             type="button"
             onClick={() => setMapFilter(f.key)}
             aria-pressed={mapFilter === f.key}
-            className={`flex-1 min-h-[40px] py-1.5 text-xs font-semibold rounded-lg transition ${
+            className={`flex-1 min-h-[44px] py-1.5 text-xs font-semibold rounded-lg transition ${
               mapFilter === f.key ? 'bg-white text-vintage-dark shadow-sm' : 'text-vintage-olive hover:bg-white/50'
             }`}
           >
@@ -122,38 +139,51 @@ export function MapView() {
 
       {selectedLocation && (
         <div className="space-y-4">
-          <LocationDetailCard location={selectedLocation} lang={lang} onScanHere={onScanHere} />
-          <ReviewSection foodId={selectedLocation.matchedFoodObj.foodId} />
+          <LocationDetailCard location={selectedLocation} lang={lang} onScanHere={onScanHere} onDemo={onDemo} />
+          <ReviewSection foodId={selectedLocation.matchedFoodObj.foodId} context={{ source: 'map', locationId: selectedLocation.id, locationName: selectedLocation.name }} />
         </div>
       )}
     </section>
   );
 }
 
-function LocationDetailCard({ location, lang, onScanHere }: { location: LocationEntry; lang: Lang; onScanHere: () => void }) {
+function LocationDetailCard({ location, lang, onScanHere, onDemo }: { location: LocationEntry; lang: Lang; onScanHere: () => void; onDemo: () => void }) {
   const { t } = useT();
+  const selectedAllergies = useProfileStore((s) => s.selectedAllergies);
   const desc = (location.desc as Record<string, string>)[lang] || location.desc.en;
   const mainDish = (location.mainDish as Record<string, string>)[lang] || location.mainDish.en;
   const allergensText = (location.allergens as Record<string, string>)[lang] || location.allergens.en;
   const categoryDisplay = (location.categoryDisplay as Record<string, string>)[lang] || location.category.toUpperCase();
+  // [UX-IMPROVEMENT P2] Personal highlight: which of this place's known
+  // allergens are in MY profile (demo data — the card says "common", not
+  // "confirmed by the restaurant").
+  const mine = (location.matchedFoodObj.allergens || []).filter((id: string) => selectedAllergies.has(id));
 
   return (
     <div className="bg-white p-4 rounded-xl vintage-border vintage-shadow space-y-2">
-      <span className="text-[10px] font-bold text-vintage-terracotta uppercase tracking-wide">{categoryDisplay}</span>
+      <span className="text-[11px] font-bold text-vintage-terracotta uppercase tracking-wide">{categoryDisplay}</span>
       <h3 className="font-serif text-lg font-bold text-vintage-dark">{lang === 'ko' ? location.nameKo : location.name}</h3>
       <p className="text-xs text-vintage-olive leading-relaxed">{desc}</p>
       <div className="grid grid-cols-2 gap-2 text-xs pt-1">
         <div>
-          <span className="block text-[10px] text-vintage-olive uppercase font-bold">{t('mainDish')}</span>
+          <span className="block text-[11px] text-vintage-olive uppercase font-bold">{t('mainDish')}</span>
           <span>{mainDish}</span>
         </div>
         <div>
-          <span className="block text-[10px] text-vintage-olive uppercase font-bold">{t('triggers')}</span>
+          <span className="block text-[11px] text-vintage-olive uppercase font-bold">{t('triggers')}</span>
           <span>{allergensText}</span>
         </div>
       </div>
+      {mine.length > 0 && (
+        <p className="text-xs font-bold text-red-900 bg-red-50 border border-red-200 rounded-lg p-2">
+          ⛔ {formatTemplate(t('triggersMatchYou'), { list: mine.map((id: string) => getAllergenDisplayLabel(lang, id)).join(', ') })}
+        </p>
+      )}
       <Button variant="primary" className="w-full mt-2" onClick={onScanHere}>
-        {t('scanBtn')}
+        📷 {t('scanThisMenuBtn')}
+      </Button>
+      <Button variant="ghost" className="w-full" onClick={onDemo}>
+        🧪 {t('demoTryBtn')}
       </Button>
     </div>
   );

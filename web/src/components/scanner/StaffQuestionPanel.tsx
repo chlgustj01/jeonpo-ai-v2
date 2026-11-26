@@ -1,11 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useT } from '../../hooks/useT';
 import { useProfileStore } from '../../store/profileStore';
 import { useUIStore } from '../../store/uiStore';
 import { useSpeech } from '../../hooks/useSpeech';
-import { generateStaffQuestions } from '../../lib/speech';
+import { generateStaffQuestions, getRiskyDishNamesKo } from '../../lib/speech';
 import { getAllergenDisplayLabel } from '../../lib/display';
+import { formatTemplate } from '../../i18n';
 import { Button } from '../common/ui';
 import type { Dish, StaffQuestionType } from '../../types';
 
@@ -25,7 +26,10 @@ const MEANING_KEY: Record<StaffQuestionType, string> = {
 
 // Ports updateStaffQuestionPanel()/generateStaffQuestions() (§IMP-09) — the
 // 4-type rule-based staff question panel. No Gemini call here at all.
-export function StaffQuestionPanel({ dishes }: { dishes: Dish[] }) {
+// [UX-IMPROVEMENT P0] Default scope = the dish the user selected (the `dishes` prop).
+// `allDishes` (the whole menu) is the secondary "ask about all flagged dishes"
+// option. Text shown = text spoken (TTS) = text copied, for either scope.
+export function StaffQuestionPanel({ dishes, allDishes }: { dishes: Dish[]; allDishes?: Dish[] }) {
   const { t, lang } = useT();
   const profile = useProfileStore(
     useShallow((s) => ({
@@ -40,7 +44,11 @@ export function StaffQuestionPanel({ dishes }: { dishes: Dish[] }) {
   const showToast = useUIStore((s) => s.showToast);
   const { speak, stop, supported } = useSpeech(() => showToast(t('toastTtsFail')));
 
-  const questions = useMemo(() => generateStaffQuestions(dishes, profile), [dishes, profile]);
+  const [scope, setScope] = useState<'dish' | 'all'>('dish');
+  const canAskAll = !!allDishes && allDishes.length > 1;
+  const scopeDishes = scope === 'all' && canAskAll ? allDishes! : dishes;
+  const flaggedCount = useMemo(() => (allDishes ? getRiskyDishNamesKo(allDishes, profile).length : 0), [allDishes, profile]);
+  const questions = useMemo(() => generateStaffQuestions(scopeDishes, profile), [scopeDishes, profile]);
   const currentText = questions[activeType];
 
   const allergenLabels = useMemo(
@@ -77,8 +85,25 @@ export function StaffQuestionPanel({ dishes }: { dishes: Dish[] }) {
   if (dishes.length === 0) return null;
 
   return (
-    <div className="bg-vintage-beige/30 p-3 rounded-xl space-y-2.5 vintage-border">
-      <span className="text-[10px] font-bold text-vintage-olive uppercase">{t('staffQTitle')}</span>
+    <div id="staff-question-panel" tabIndex={-1} className="bg-vintage-beige/30 p-3 rounded-xl space-y-2.5 vintage-border scroll-mt-4 focus:outline-none">
+      <h3 className="text-xs font-bold text-vintage-olive uppercase">{t('staffQTitle')}</h3>
+      {canAskAll && (
+        <div className="flex gap-1" role="group" aria-label={t('staffQTitle')}>
+          {(['dish', 'all'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              aria-pressed={scope === s}
+              onClick={() => setScope(s)}
+              className={`flex-1 min-h-[44px] px-2 text-xs font-semibold rounded-lg border transition ${
+                scope === s ? 'bg-vintage-dark text-white border-vintage-dark' : 'bg-white text-vintage-olive border-vintage-dark/10'
+              }`}
+            >
+              {s === 'dish' ? t('staffScopeDish') : formatTemplate(t('staffScopeAll'), { n: flaggedCount })}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex gap-1" role="tablist" aria-label={t('staffQTitle')}>
         {TYPES.map((type) => (
           <button
@@ -87,7 +112,7 @@ export function StaffQuestionPanel({ dishes }: { dishes: Dish[] }) {
             role="tab"
             aria-selected={type === activeType}
             onClick={() => setActiveType(type)}
-            className={`flex-1 min-h-[36px] text-[10px] font-bold rounded-lg transition ${
+            className={`flex-1 min-h-[44px] px-1 text-[11px] leading-tight font-bold rounded-lg transition ${
               type === activeType ? 'bg-vintage-terracotta text-white' : 'bg-white text-vintage-olive hover:bg-vintage-beige/60'
             }`}
           >
@@ -95,12 +120,12 @@ export function StaffQuestionPanel({ dishes }: { dishes: Dish[] }) {
           </button>
         ))}
       </div>
-      <p className="text-[10px] text-vintage-olive">{meaning}</p>
+      <p className="text-xs text-vintage-olive">{meaning}</p>
       <div className="p-3 bg-white rounded-lg text-sm font-semibold text-vintage-dark leading-relaxed">{currentText}</div>
       {questions.hasAmbiguousCustomAllergyCaveat && (
         <p className="text-[10px] text-amber-700">{t('staffQAmbiguousCaveat')}</p>
       )}
-      <p className="text-[9px] text-vintage-olive italic">{t('staffQShowScreenNote')}</p>
+      <p className="text-[11px] text-vintage-olive italic">{t('staffQShowScreenNote')}</p>
       <div className="flex gap-2">
         <Button variant="primary" className="flex-1" onClick={() => speak(currentText)} disabled={!supported}>
           {t('staffQSpeakBtn')}

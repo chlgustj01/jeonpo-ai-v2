@@ -51,3 +51,18 @@ body {
 #jeonpo-map { font-family: 'Noto Sans KR', sans-serif; }
 #jeonpo-map .leaflet-pane,
 #jeonpo-map .leaflet-control { z-index: 5; }
+
+/* [UX-IMPROVEMENT] 44px touch targets for Leaflet's own controls (zoom +/-
+   were 30px, popup close 24px — docs/UX-AUDIT.md §8.1). */
+#jeonpo-map .leaflet-control-zoom a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  font-size: 20px;
+}
+#jeonpo-map .leaflet-popup-close-button {
+  width: 44px;
+  height: 44px;
+  font-size: 22px;
+  line-height: 44px;
+}

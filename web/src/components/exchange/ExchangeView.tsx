@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useT } from '../../hooks/useT';
 import { useExchangeRates, type Currency } from '../../hooks/useExchangeRates';
 import { Card } from '../common/ui';
+import { formatTemplate } from '../../i18n';
 
 const CURRENCIES: { code: Currency; symbol: string }[] = [
   { code: 'USD', symbol: 'USD ($)' },
@@ -17,7 +18,7 @@ const LOCALE_MAP: Record<string, string> = { en: 'en-US', ja: 'ja-JP', zh: 'zh-C
 // tab, kept per §6 "지도, 스캔, 직원 질문, 환율 기능을 누락하지 않는다").
 export function ExchangeView() {
   const { t, lang } = useT();
-  const { index, rateAsOfDate } = useExchangeRates();
+  const { index, rateAsOfDate, status } = useExchangeRates();
   const [target, setTarget] = useState<Currency>('USD');
   const [foreignValue, setForeignValue] = useState('');
   const [krwValue, setKrwValue] = useState('');
@@ -61,23 +62,36 @@ export function ExchangeView() {
     return `1 ${target} = ${Math.round(rate).toLocaleString()} KRW`;
   })();
 
-  const rateAsOfText = rateAsOfDate
-    ? `${t('liveSyncedText')}: ${new Intl.DateTimeFormat(LOCALE_MAP[lang] || 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(rateAsOfDate)}`
-    : t('liveSyncedText');
+  // [UX-IMPROVEMENT §6] Live vs reference rates are labeled differently; the
+  // hardcoded fallback is never shown under a "live/as of" label.
+  const rateStatusText =
+    status === 'live'
+      ? rateAsOfDate
+        ? formatTemplate(t('rateLive'), {
+            time: new Intl.DateTimeFormat(LOCALE_MAP[lang] || 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(rateAsOfDate),
+          })
+        : t('rateLive').replace(/\s*\{time\}\s*/, ' ')
+      : status === 'fallback'
+        ? t('rateFallback')
+        : t('rateLoading');
+  const badgeClass =
+    status === 'live' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : status === 'fallback' ? 'bg-amber-50 text-amber-900 border-amber-300' : 'bg-slate-100 text-slate-800 border-slate-300';
 
   return (
     <section className="p-4 space-y-4" aria-label={t('exchTitle')}>
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start gap-2">
         <h2 className="font-serif text-2xl font-bold text-vintage-dark">{t('exchTitle')}</h2>
-        <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold border border-emerald-200">{rateAsOfText}</span>
+        <span className={`text-[11px] px-2 py-0.5 rounded font-bold border text-right ${badgeClass}`} role="status">{rateStatusText}</span>
       </div>
 
       <Card className="space-y-3">
         <div className="flex items-center gap-2 text-xs">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+          <span className={`w-2 h-2 rounded-full ${status === 'live' ? 'bg-emerald-500' : 'bg-amber-500'}`} aria-hidden="true" />
           {t('naverTitle')}
         </div>
-        <p className="text-[10px] text-vintage-olive">{t('exchSource')}</p>
+        <p className="text-[11px] text-vintage-olive">
+          {t('exchSource')} {t('rateSourceName')}
+        </p>
 
         <div className="flex gap-1.5 flex-wrap" role="group" aria-label={t('targetCur')}>
           {CURRENCIES.map((c) => (
@@ -86,7 +100,7 @@ export function ExchangeView() {
               type="button"
               onClick={() => onTargetChange(c.code)}
               aria-pressed={target === c.code}
-              className={`min-h-[40px] px-3 text-xs font-bold rounded-lg border transition ${
+              className={`min-h-[44px] px-3 text-xs font-bold rounded-lg border transition ${
                 target === c.code ? 'bg-vintage-terracotta text-white border-vintage-terracotta' : 'bg-white text-vintage-dark border-vintage-dark/10'
               }`}
             >

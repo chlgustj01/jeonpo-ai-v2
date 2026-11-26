@@ -30,6 +30,16 @@ interface PersistedShape {
   selectedAllergies: string[];
   customAllergies: CustomAllergyEntry[];
   onboardingComplete: boolean;
+  // [UX-IMPROVEMENT] Optional; absent in older/vanilla-saved profiles (= not stated).
+  noAllergiesConfirmed?: boolean;
+}
+
+// [UX-IMPROVEMENT] 'set' = at least one allergy registered, 'none' = the user
+// explicitly said they have none, 'unset' = never answered (old profiles too).
+export type AllergyProfileStatus = 'set' | 'none' | 'unset';
+export function getAllergyProfileStatus(s: Pick<ProfileState, 'selectedAllergies' | 'customAllergies' | 'noAllergiesConfirmed'>): AllergyProfileStatus {
+  if (s.selectedAllergies.size > 0 || s.customAllergies.length > 0) return 'set';
+  return s.noAllergiesConfirmed ? 'none' : 'unset';
 }
 
 export interface ProfileState {
@@ -40,6 +50,7 @@ export interface ProfileState {
   selectedAllergies: Set<string>;
   customAllergies: CustomAllergyEntry[];
   onboardingComplete: boolean;
+  noAllergiesConfirmed: boolean;
 
   setLang: (lang: Lang) => void;
   setDietary: (d: Dietary) => void;
@@ -51,6 +62,7 @@ export interface ProfileState {
   updateCustomAllergy: (original: string, patch: Partial<CustomAllergyEntry>) => void;
   removeCustomAllergy: (original: string) => void;
   completeOnboarding: () => void;
+  setNoAllergiesConfirmed: (v: boolean) => void;
   resetProfile: () => void;
 }
 
@@ -77,6 +89,7 @@ const storage: PersistStorage<ProfileState> = {
         selectedAllergies: new Set(migration.ids),
         customAllergies: data.customAllergies || [],
         onboardingComplete: !!data.onboardingComplete,
+        noAllergiesConfirmed: !!data.noAllergiesConfirmed,
       } as ProfileState;
       return { state, version: PROFILE_SCHEMA_VERSION } as unknown as StorageValue<ProfileState>;
     } catch (err) {
@@ -96,6 +109,7 @@ const storage: PersistStorage<ProfileState> = {
         selectedAllergies: Array.from(s.selectedAllergies),
         customAllergies: s.customAllergies,
         onboardingComplete: s.onboardingComplete,
+        noAllergiesConfirmed: s.noAllergiesConfirmed,
       };
       localStorage.setItem(name, JSON.stringify(payload));
     } catch (err) {
@@ -118,6 +132,7 @@ export const useProfileStore = create<ProfileState>()(
       selectedAllergies: new Set<string>(),
       customAllergies: [],
       onboardingComplete: false,
+      noAllergiesConfirmed: false,
 
       setLang: (lang) => set({ lang }),
       setDietary: (dietary) => set({ dietary }),
@@ -131,11 +146,12 @@ export const useProfileStore = create<ProfileState>()(
           const next = new Set(st.selectedAllergies);
           if (next.has(id)) next.delete(id);
           else next.add(id);
-          return { selectedAllergies: next };
+          // Registering an allergy overrides an earlier "I have none".
+          return { selectedAllergies: next, noAllergiesConfirmed: next.size > 0 ? false : st.noAllergiesConfirmed };
         }),
       clearAllAllergies: () => set({ selectedAllergies: new Set(), customAllergies: [] }),
       addCustomAllergy: (entry) =>
-        set((st) => ({ customAllergies: [...st.customAllergies, entry] })),
+        set((st) => ({ customAllergies: [...st.customAllergies, entry], noAllergiesConfirmed: false })),
       updateCustomAllergy: (original, patch) =>
         set((st) => ({
           customAllergies: st.customAllergies.map((c) =>
@@ -145,6 +161,7 @@ export const useProfileStore = create<ProfileState>()(
       removeCustomAllergy: (original) =>
         set((st) => ({ customAllergies: st.customAllergies.filter((c) => c.original !== original) })),
       completeOnboarding: () => set({ onboardingComplete: true }),
+      setNoAllergiesConfirmed: (v) => set(v ? { noAllergiesConfirmed: true, selectedAllergies: new Set(), customAllergies: [] } : { noAllergiesConfirmed: false }),
       resetProfile: () =>
         set({
           dietary: 'none',
@@ -153,6 +170,7 @@ export const useProfileStore = create<ProfileState>()(
           selectedAllergies: new Set(),
           customAllergies: [],
           onboardingComplete: false,
+          noAllergiesConfirmed: false,
         }),
     }),
     {

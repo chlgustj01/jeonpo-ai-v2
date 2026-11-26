@@ -28,7 +28,7 @@ async function mockAnalyze(route: Route) {
   await route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify({ dishes: [MOCK_DISH], analysisId: 'analysis-1', validationStatus: 'ok' }),
+    body: JSON.stringify({ dishes: [MOCK_DISH], analysisId: 'analysis-1', validationStatus: 'valid' }),
   });
 }
 
@@ -63,7 +63,8 @@ test.beforeEach(async ({ page, context }) => {
 test('onboarding completes and reaches the main app', async ({ page }) => {
   await expect(page.getByText('FitBridge', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Get Started/i }).click();
-  await expect(page.getByText('Jeonpo Map')).toBeVisible();
+  // [UX-IMPROVEMENT] Onboarding now lands on the core task (menu scan).
+  await expect(page.getByRole('heading', { name: 'Menu Translation' })).toBeVisible();
   await page.screenshot({ path: 'screenshots/01-onboarding-complete.png', fullPage: true });
 });
 
@@ -133,7 +134,7 @@ test('staff question panel offers 4 types and a Korean phrase is shown', async (
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.locator('input[type=file]').setInputFiles(path.join(__dirname, 'fixtures/tiny.png'));
   await page.getByRole('button', { name: /Scan/i }).click();
-  await expect(page.getByText('Ask Staff')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('Ask Staff', { exact: true })).toBeVisible({ timeout: 10000 });
 
   await page.getByRole('tab', { name: 'Cross-Contact' }).click();
   await expect(page.getByText(/조리 기구|조리도구/)).toBeVisible();
@@ -142,7 +143,8 @@ test('staff question panel offers 4 types and a Korean phrase is shown', async (
 
 test('review can be added and survives reload, separately from demo reviews', async ({ page }) => {
   await page.getByRole('button', { name: /Get Started/i }).click();
-  // The Samgyeopsal marker is the first seeded location — click its marker popup via the map tab (already active).
+  // The Samgyeopsal marker is the first seeded location — open the Map tab (onboarding now lands on Menu).
+  await page.getByRole('button', { name: 'Map', exact: true }).click();
   await page.locator('.leaflet-marker-icon').first().click();
   await expect(page.getByText('Traveler Reviews')).toBeVisible();
 
@@ -189,7 +191,7 @@ test('no unexpected console errors during the core onboarding -> scan -> review 
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.locator('input[type=file]').setInputFiles(path.join(__dirname, 'fixtures/tiny.png'));
   await page.getByRole('button', { name: /Scan/i }).click();
-  await expect(page.getByText('Ask Staff')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('Ask Staff', { exact: true })).toBeVisible({ timeout: 10000 });
 
   // Leaflet's "Invalid LatLng" or React key warnings would show up here —
   // filter out the two known third-party noise sources (a cross-origin

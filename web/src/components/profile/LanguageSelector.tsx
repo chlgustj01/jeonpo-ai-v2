@@ -10,7 +10,7 @@ export function LanguageSelector() {
   return (
     <div>
       <label className="block text-xs uppercase tracking-wider text-vintage-olive font-bold mb-2">
-        Select Your Language / 国籍・言語
+        🌐 {t('langLabel')}
       </label>
       <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t('tagline')}>
         {LANGS.map((l) => (

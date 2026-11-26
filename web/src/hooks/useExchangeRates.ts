@@ -17,6 +17,9 @@ const FALLBACK_INDEX: Record<Currency, number> = {
 export function useExchangeRates() {
   const [index, setIndex] = useState<Record<Currency, number>>(FALLBACK_INDEX);
   const [rateAsOfDate, setRateAsOfDate] = useState<Date | null>(null);
+  // [UX-IMPROVEMENT §6] 'loading' / 'live' / 'fallback' — the hardcoded
+  // reference rates must never be presented as a live rate.
+  const [status, setStatus] = useState<'loading' | 'live' | 'fallback'>('loading');
 
   useEffect(() => {
     let mounted = true;
@@ -24,7 +27,11 @@ export function useExchangeRates() {
       try {
         const response = await fetch('https://open.er-api.com/v6/latest/KRW');
         const data = await response.json();
-        if (!mounted || !data?.rates) return;
+        if (!mounted) return;
+        if (!data?.rates) {
+          setStatus('fallback');
+          return;
+        }
         setIndex({
           USD: Math.round(1 / data.rates.USD),
           JPY: (1 / data.rates.JPY) / 10, // per 100 JPY
@@ -32,9 +39,11 @@ export function useExchangeRates() {
           EUR: Math.round(1 / data.rates.EUR),
           VND: (1 / data.rates.VND) * 1000, // per 1,000 VND
         });
-        setRateAsOfDate(data.time_last_update_utc ? new Date(data.time_last_update_utc) : new Date());
+        setRateAsOfDate(data.time_last_update_utc ? new Date(data.time_last_update_utc) : null);
+        setStatus('live');
       } catch (e) {
-        console.error('Live exchange rates fetch error, fallback active.', e);
+        console.warn('Live exchange rates fetch error, fallback active.', e);
+        if (mounted) setStatus('fallback');
       }
     })();
     return () => {
@@ -42,5 +51,5 @@ export function useExchangeRates() {
     };
   }, []);
 
-  return { index, rateAsOfDate };
+  return { index, rateAsOfDate, status };
 }

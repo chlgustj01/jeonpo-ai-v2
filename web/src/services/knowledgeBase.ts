@@ -12,10 +12,12 @@ const {
   FOOD_KB_LOAD_STATUS,
   buildFoodKnowledgeBase,
   buildDishKnowledgeReport,
+  splitIngredientList,
 } = foodKnowledgeModule as {
   FOOD_KB_LOAD_STATUS: { LOADING: string; READY: string; LOAD_FAILED: string };
   buildFoodKnowledgeBase: (input: unknown) => any;
   buildDishKnowledgeReport: (kb: unknown, dish: unknown, ctx: unknown) => any;
+  splitIngredientList: (text: string) => string[];
 };
 
 export { KNOWN_AMBIGUOUS_CUSTOM_TERMS };
@@ -189,7 +191,7 @@ export function buildKnowledgeReportForDish(
   // UI language. Look up the canonical English text when it is available.
   const d = dish as { ingredients?: string; canonicalIngredients?: string } | null;
   const lookupDish = d && typeof d.canonicalIngredients === 'string' ? { ...d, ingredients: d.canonicalIngredients } : dish;
-  return buildDishKnowledgeReport(foodKB.kb, lookupDish, {
+  const report = buildDishKnowledgeReport(foodKB.kb, lookupDish, {
     kbStatus: foodKB.status,
     analysisSource,
     dishKey,
@@ -199,6 +201,28 @@ export function buildKnowledgeReportForDish(
     isActiveAllergen: (id: string) => activeIds.has(id),
     ambiguousTerms: KNOWN_AMBIGUOUS_CUSTOM_TERMS,
   });
+  // [UX-IMPROVEMENT] Lookup stays on the English canonical tokens (DB keys),
+  // but the screen shows the translated token at the same position. The
+  // translation keeps the ingredient list's order and count in practice;
+  // when the counts differ we cannot pair them safely, so the canonical
+  // token is shown (better than a wrong pairing).
+  if (report && d && typeof d.canonicalIngredients === 'string' && typeof d.ingredients === 'string' && d.ingredients !== d.canonicalIngredients) {
+    const canon = splitIngredientList(d.canonicalIngredients);
+    const shown = splitIngredientList(d.ingredients);
+    if (canon.length === shown.length) {
+      const map: Record<string, string> = {};
+      canon.forEach((token, i) => {
+        map[token] = shown[i];
+      });
+      report.displayNames = map;
+    }
+  }
+  return report;
+}
+
+// Display text for a knowledge-report token (translated when available).
+export function displayIngredient(report: { displayNames?: Record<string, string> } | null, token: string): string {
+  return (report && report.displayNames && report.displayNames[token]) || token;
 }
 
 export function lookupAllergenTermForIngredient(text: string) {
@@ -285,4 +309,11 @@ export async function resolveCustomAllergyInput(rawText: string): Promise<Custom
     candidateIds: [],
     userConfirmed: false,
   };
+}
+
+// True when any finding (advisory or detail) is a literature-tier relation —
+// the caller shows the shared "literature-based, not expert-reviewed" note once.
+export function reportHasLiteratureTier(report: any | null): boolean {
+  if (!report || report.lookupStatus !== 'ready') return false;
+  return report.groups.some((g: any) => g.findings.some((f: any) => f.knowledgeTier === 'literature_candidate'));
 }

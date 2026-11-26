@@ -25,7 +25,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen flex justify-center bg-vintage-beige">
       <div className="w-full max-w-md bg-vintage-cream min-h-screen flex flex-col relative shadow-2xl border-x border-vintage-dark/10">
         <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 bg-white px-3 py-2 rounded">
-          Skip to content
+          {t('skipToContent')}
         </a>
         <header className="flex items-center justify-between px-4 py-3 border-b border-vintage-dark/10">
           <span className="font-serif text-xl font-bold text-vintage-terracotta">FitBridge</span>
@@ -33,9 +33,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             type="button"
             onClick={openProfileModal}
             aria-label={t('updateProfile')}
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full bg-vintage-beige text-vintage-dark text-lg"
+            className="min-h-[44px] min-w-[44px] px-3 flex items-center justify-center gap-1.5 rounded-full bg-vintage-beige text-vintage-dark"
           >
-            👤
+            <span className="text-lg" aria-hidden="true">👤</span>
+            <span className="text-xs font-bold">{t('profileBtnLabel')}</span>
           </button>
         </header>
 

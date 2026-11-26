@@ -15,7 +15,7 @@ import { DishResultList } from './DishResultList';
 // 애니메이션 지양") but keeps the two-step upload-then-scan flow, since
 // that's also how the map's "Scan Menu Here" demo path arrives here.
 export function ScannerView() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const showToast = useUIStore((s) => s.showToast);
   const inputRef = useRef<HTMLInputElement>(null);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
@@ -41,6 +41,16 @@ export function ScannerView() {
       reset: s.reset,
     }))
   );
+  const { locationContext, resultLocation, analyzedAt, restoredFromSession, clearLocationContext } = useScanStore(
+    useShallow((s) => ({
+      locationContext: s.locationContext,
+      resultLocation: s.resultLocation,
+      analyzedAt: s.analyzedAt,
+      restoredFromSession: s.restoredFromSession,
+      clearLocationContext: s.clearLocationContext,
+    }))
+  );
+  const placeName = (loc: { name: string; nameKo: string } | null) => (loc ? (lang === 'ko' ? loc.nameKo : loc.name) : '');
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -82,8 +92,8 @@ export function ScannerView() {
         <div className="space-y-2">
           <ErrorNotice title={t('errorTitle')} description={t(ERROR_MESSAGE_KEYS[errorCode ?? 'UNKNOWN'])} />
           {errorMessage && (
-            <details className="text-[10px] text-vintage-olive">
-              <summary className="cursor-pointer min-h-[32px] inline-flex items-center">{t('errTechDetails')}</summary>
+            <details className="text-xs text-vintage-olive">
+              <summary className="cursor-pointer min-h-[44px] inline-flex items-center">{t('errTechDetails')}</summary>
               <code className="block font-mono break-all">{errorMessage}</code>
             </details>
           )}
@@ -98,6 +108,20 @@ export function ScannerView() {
 
       {!hasResult && (
         <div className="bg-white rounded-2xl p-4 vintage-border vintage-shadow space-y-3">
+          {/* [UX-IMPROVEMENT P1] The restaurant chosen on the map stays visible while photographing its menu. */}
+          {locationContext && (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-vintage-beige/60 border border-vintage-dark/10">
+              <span className="flex-1 text-sm font-bold text-vintage-dark">📍 {formatTemplate(t('locationScanHeader'), { name: placeName(locationContext) })}</span>
+              <button
+                type="button"
+                onClick={clearLocationContext}
+                aria-label={t('locationClear')}
+                className="min-h-[44px] min-w-[44px] rounded-lg text-vintage-olive hover:bg-white text-lg"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div className="aspect-square rounded-xl bg-vintage-beige/50 border-2 border-dashed border-vintage-dark/15 flex flex-col items-center justify-center text-center overflow-hidden relative">
             {pendingImage ? (
               <img src={pendingImage} alt={t('camTitle')} className="absolute inset-0 w-full h-full object-contain" />
@@ -134,6 +158,17 @@ export function ScannerView() {
 
       {hasResult && (
         <div className="space-y-3">
+          {/* [UX-IMPROVEMENT] Which restaurant / when — a restored result is labeled as such, never passed off as a new photo's. */}
+          {(resultLocation || analyzedAt) && (
+            <p className="text-xs text-vintage-olive flex flex-wrap gap-x-2">
+              {resultLocation && <span className="font-bold text-vintage-dark">📍 {placeName(resultLocation)}</span>}
+              {analyzedAt && kind === 'multi' && (
+                <span>{formatTemplate(t('analyzedAt'), { time: new Intl.DateTimeFormat(lang, { hour: '2-digit', minute: '2-digit' }).format(analyzedAt) })}</span>
+              )}
+              {restoredFromSession && <span>· {t('restoredNote')}</span>}
+            </p>
+          )}
+          {status === 'translating' && <Spinner label={t('translatingLabel')} />}
           {lastTranslationFailed && (
             <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2" role="status">{t('toastTranslationFailed')}</p>
           )}
