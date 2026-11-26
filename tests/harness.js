@@ -68,7 +68,10 @@ function loadApp(htmlPath, options = {}) {
 
   const localStorageStub = makeLocalStorageStub(options.localStorageData);
 
-  const windowStub = {};
+  // [IMP-14] deleteReview()/resetToOnboarding()이 window.confirm()을 부른다 —
+  // 테스트에서는 항상 "확인"을 누른 것처럼 true를 돌려준다. 거부(취소) 쪽
+  // 경로를 검증해야 하는 테스트는 호출 전에 이 함수를 직접 덮어쓰면 된다.
+  const windowStub = { confirm: () => true };
   // [IMP-03] getElementById가 호출마다 매번 새 더미를 돌려주면, 앱 코드가
   // 어떤 id에 쓴 값을 테스트 쪽에서 "같은 id로" 다시 읽어올 방법이 없다
   // (항상 다른 객체라서 전혀 다른 요소를 보는 것과 같음). id별로 캐시해

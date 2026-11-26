@@ -299,6 +299,9 @@
               <!-- Dynamic review cards injected here -->
             </div>
 
+            <!-- [IMP-14] 리뷰는 개인 경험일 뿐 알레르기 안전 근거가 아니라는 고지 -->
+            <p class="text-[10px] text-vintage-olive text-center" id="reviews-safety-disclaimer">Reviews reflect personal experience only — not a guarantee of allergen safety.</p>
+
             <!-- Add Review Form -->
             <form onsubmit="submitReview(event)" class="bg-vintage-beige/30 p-4 rounded-xl space-y-3 vintage-border">
               <span class="text-xs font-bold text-vintage-olive uppercase" id="lbl-add-review">Add Your Review</span>
@@ -319,7 +322,10 @@
                 </select>
               </div>
               <textarea id="review-comment-input" required placeholder="Share your experience..." class="w-full h-16 text-xs p-2.5 rounded-lg bg-white vintage-border focus:outline-none focus:ring-1 focus:ring-vintage-clay"></textarea>
-              <button type="submit" class="w-full py-2.5 bg-vintage-terracotta text-white rounded-lg text-xs font-bold hover:bg-vintage-dark transition" id="btn-submit-review">Submit Review</button>
+              <div class="flex gap-2">
+                <button type="submit" class="flex-1 py-2.5 bg-vintage-terracotta text-white rounded-lg text-xs font-bold hover:bg-vintage-dark transition" id="btn-submit-review">Submit Review</button>
+                <button type="button" onclick="cancelEditReview()" id="btn-cancel-edit-review" class="hidden px-4 py-2.5 bg-vintage-dark/10 text-vintage-dark rounded-lg text-xs font-bold hover:bg-vintage-dark/20 transition">Cancel</button>
+              </div>
             </form>
           </div>
         </section>
@@ -467,11 +473,9 @@
               <!-- Multi-dish list view (used by the real AI photo scan, which can find several items on a menu) -->
               <div id="multi-dish-list" class="space-y-2 hidden"></div>
 
-              <!-- Instant Sound Help TTS Button -->
-              <button onclick="triggerQuickAllergySpeech()" class="w-full py-3 bg-vintage-terracotta text-white rounded-xl text-sm font-bold hover:bg-vintage-dark transition flex items-center justify-center gap-2 vintage-shadow">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
-                <span id="btn-sound-alarm">Ask Waiter in Korean</span>
-              </button>
+              <!-- [IMP-09] 맞춤형 직원 질문 패널 — updateStaffQuestionPanel()이 채운다.
+                   단일/멀티 스캔 결과 둘 다 이 자리 하나를 공유한다. -->
+              <div id="staff-question-panel"></div>
             </div>
           </div>
         </section>
@@ -768,7 +772,20 @@
       analysisAbortController: null,
       translationAbortController: null,
       rateAsOfDate: null,
-      reviewsFilterMode: 'similar' // 'similar' | 'country' | 'all' — which reviews show in the list
+      reviewsFilterMode: 'similar', // 'similar' | 'country' | 'all' — which reviews show in the list
+      // [IMP-07] 현재 화면에 표시 중인 스캔 결과 — 프로필이 바뀌었을 때 AI를
+      // 다시 부르지 않고 이 값만 가지고 위험도를 재계산/재렌더링한다.
+      lastRenderedDishes: null, // 멀티 스캔(실제 AI 사진 분석) 경로의 dish 배열
+      lastRenderedMatchObj: null, // 데모 단일 스캔(지도 "Scan Menu Here") 경로의 matchObj
+      lastScanRenderKind: null, // 'multi' | 'single' | null
+      // [IMP-09] 직원 질문 패널 — 4가지 질문 유형 중 현재 선택된 탭.
+      staffQuestionType: 'comprehensive',
+      isSpeaking: false, // 반복 클릭 시 중복 발화 방지
+      // [IMP-14] 실제 사용자가 작성한 리뷰(데모 REVIEWS_DATABASE와 분리) —
+      // localStorage에서 복원되며, foodId별 배열로 보관한다.
+      userReviews: {},
+      editingReviewId: null,
+      isSubmittingReview: false
     };
 
     let mapInstance = null;
@@ -1297,6 +1314,46 @@
         sourceDemoNote: "(Demo data for this walkthrough — not real restaurant-verified information.)",
         toastPartialResults: "Some items in the photo could not be read. Showing the ones that were.",
         toastTranslationFailed: "Translation failed — showing the original English text instead.",
+        // [IMP-09/14 Package 3] 신규 UI 번역 — 아래부터
+        toastCustomAmbiguous: "This term could mean more than one thing — please choose below.",
+        toastCustomResolved: "Saved with the ingredient you selected.",
+        toastCustomAlreadyAdded: "This is the same ingredient as one you already added.",
+        toastCustomAlreadyStandard: "This is already checked in your standard allergy list.",
+        badgeExactStandard: "Matched to a standard allergen in our list.",
+        badgeExactAlias: "Matched via a verified synonym.",
+        badgeCandidateDb: "Known ingredient, but not yet used in automatic risk matching.",
+        badgeCustomUnlisted: "Not in our database yet — kept as-is for your profile & staff card.",
+        badgeTranslationFailed: "Could not confirm the Korean translation — original text kept.",
+        badgeKbUnavailable: "Could not check our allergen database right now.",
+        badgeAmbiguous: "This term could mean more than one thing — please clarify below.",
+        staffQTitle: "Ask Staff",
+        staffQTypeGeneral: "Ingredients",
+        staffQTypePersonal: "My Allergies",
+        staffQTypeCrossContact: "Cross-Contact",
+        staffQTypeComprehensive: "All-in-One",
+        staffQMeaningGeneral: "Asks what ingredients and seasoning are in this dish.",
+        staffQMeaningPersonal: "Asks about your own allergies/diet",
+        staffQMeaningCrossContact: "Asks whether shared cooking tools, oil, or kitchen space could cause cross-contact.",
+        staffQMeaningComprehensive: "Combines your allergies, diet, and cross-contact into one question.",
+        staffQSpeakBtn: "Speak in Korean",
+        staffQStopBtn: "Stop",
+        staffQCopyBtn: "Copy",
+        staffQCopiedToast: "Copied — you can show this to staff.",
+        staffQAmbiguousCaveat: "Some custom allergy entries couldn't be confirmed and are not included in the spoken Korean — please clarify them yourself if needed.",
+        staffQShowScreenNote: "If voice doesn't play, show this screen to the staff instead.",
+        reviewsSafetyDisclaimer: "Reviews reflect personal experience only — not a guarantee of allergen safety.",
+        reviewYourBadge: "Saved on this device",
+        reviewEditBtn: "Edit",
+        reviewDeleteBtn: "Delete",
+        reviewCancelEditBtn: "Cancel",
+        reviewUpdateBtn: "Update Review",
+        reviewDeleteConfirm: "Delete this review?",
+        reviewUpdatedToast: "Review updated!",
+        reviewDeletedToast: "Review deleted.",
+        toastReviewDataReset: "Your saved reviews could not be read and were reset.",
+        reviewAddedToast: "Thanks for sharing your review!",
+        reviewSubmitBtn: "Submit Review",
+        addYourReviewLabel: "Add Your Review",
         spicyDesc0: "The safest level for travelers visiting Korea for the first time. You can comfortably enjoy Korean flavors with zero spice, like samgyeopsal, soy-marinated bulgogi, and rolled egg.",
         spicyDesc1: "A middle step for those who want to try a little spice. You can happily enjoy rinsed (mild) kimchi, non-spicy seafood pancake, or a savory doenjang stew.",
         spicyDesc2: "For travelers who know how to enjoy a spicy kick. If you can happily eat regular red kimchi, sweet-and-spicy yangnyeom chicken, and Korea's classic spicy ramen (Shin Ramyun level), this is for you.",
@@ -1422,6 +1479,45 @@
         sourceDemoNote: "（この画面はデモ用のサンプルデータであり、実際の店舗確認情報ではありません。）",
         toastPartialResults: "一部の項目を認識できませんでした。認識できた料理のみ表示します。",
         toastTranslationFailed: "翻訳に失敗しました — 代わりに英語の原文を表示します。",
+        toastCustomAmbiguous: "この言葉は複数の意味に解釈できます — 下から選んでください。",
+        toastCustomResolved: "選択した成分で保存しました。",
+        toastCustomAlreadyAdded: "すでに追加した成分と同じです。",
+        toastCustomAlreadyStandard: "すでに標準アレルギーリストで選択されています。",
+        badgeExactStandard: "リスト内の標準アレルゲンと一致しました。",
+        badgeExactAlias: "確認済みの同義語で一致しました。",
+        badgeCandidateDb: "データベースにある成分ですが、自動判定にはまだ使用されません。",
+        badgeCustomUnlisted: "まだデータベースにありません — プロフィールとスタッフカードにはそのまま保持されます。",
+        badgeTranslationFailed: "韓国語訳を確認できませんでした — 元の文字列を保持します。",
+        badgeKbUnavailable: "現在アレルゲンデータベースを確認できません。",
+        badgeAmbiguous: "この言葉は複数の意味を持つ可能性があります — 下で明確にしてください。",
+        staffQTitle: "スタッフに質問",
+        staffQTypeGeneral: "材料",
+        staffQTypePersonal: "私のアレルギー",
+        staffQTypeCrossContact: "混入確認",
+        staffQTypeComprehensive: "まとめて質問",
+        staffQMeaningGeneral: "この料理に使われている材料と味付けを尋ねます。",
+        staffQMeaningPersonal: "あなたのアレルギー・食事制限について尋ねます",
+        staffQMeaningCrossContact: "共用の調理器具・油・調理スペースによる混入の可能性を尋ねます。",
+        staffQMeaningComprehensive: "アレルギー・食事制限・混入確認を1つの質問にまとめます。",
+        staffQSpeakBtn: "韓国語で話す",
+        staffQStopBtn: "停止",
+        staffQCopyBtn: "コピー",
+        staffQCopiedToast: "コピーしました — スタッフに見せることもできます。",
+        staffQAmbiguousCaveat: "一部のカスタムアレルギー入力は確認できず、韓国語の発話には含まれていません — 必要な場合は直接確認してください。",
+        staffQShowScreenNote: "音声が再生されない場合は、この画面をスタッフに見せてください。",
+        reviewsSafetyDisclaimer: "レビューは個人の体験に基づくものであり、アレルギーの安全性を保証するものではありません。",
+        reviewYourBadge: "この端末に保存",
+        reviewEditBtn: "編集",
+        reviewDeleteBtn: "削除",
+        reviewCancelEditBtn: "キャンセル",
+        reviewUpdateBtn: "レビューを更新",
+        reviewDeleteConfirm: "このレビューを削除しますか?",
+        reviewUpdatedToast: "レビューを更新しました!",
+        reviewDeletedToast: "レビューを削除しました。",
+        toastReviewDataReset: "保存されたレビューを読み込めず、リセットされました。",
+        reviewAddedToast: "レビューを共有していただきありがとうございます!",
+        reviewSubmitBtn: "レビューを送信",
+        addYourReviewLabel: "レビューを書く",
         spicyDesc0: "初めて韓国を訪れる旅行者にとって最も安全なレベルです。サムギョプサル、醤油味プルコギ、卵焼きなど、辛さゼロの韓国の味を安心して楽しめます。",
         spicyDesc1: "少しずつ辛さに挑戦したい方向けの中間レベルです。水キムチや辛くない海鮮チヂミ、香り豊かなテンジャンチゲくらいなら気持ちよく楽しめます。",
         spicyDesc2: "ピリッとした辛さを楽しめる旅行者向けのレベルです。普通の赤いキムチ、甘辛いヤンニョムチキン、韓国の代表的な辛ラーメン（辛ラーメンレベル）を美味しく食べられるならおすすめです。",
@@ -1547,6 +1643,45 @@
         sourceDemoNote: "（此界面为演示用示例数据,并非商家确认的真实信息。）",
         toastPartialResults: "部分内容未能识别。仅显示已识别的菜品。",
         toastTranslationFailed: "翻译失败 — 将显示原始英文文本。",
+        toastCustomAmbiguous: "该词可能有多种含义 — 请在下方选择。",
+        toastCustomResolved: "已按您选择的成分保存。",
+        toastCustomAlreadyAdded: "与您已添加的成分相同。",
+        toastCustomAlreadyStandard: "已在标准过敏原列表中勾选。",
+        badgeExactStandard: "已匹配列表中的标准过敏原。",
+        badgeExactAlias: "通过已验证的同义词匹配。",
+        badgeCandidateDb: "数据库中已有该成分,但尚未用于自动风险匹配。",
+        badgeCustomUnlisted: "数据库中暂无此项 — 将原样保留在您的档案和员工卡中。",
+        badgeTranslationFailed: "无法确认韩语翻译 — 已保留原文。",
+        badgeKbUnavailable: "当前无法查询过敏原数据库。",
+        badgeAmbiguous: "该词可能有多种含义 — 请在下方明确说明。",
+        staffQTitle: "询问店员",
+        staffQTypeGeneral: "食材",
+        staffQTypePersonal: "我的过敏",
+        staffQTypeCrossContact: "交叉污染",
+        staffQTypeComprehensive: "综合提问",
+        staffQMeaningGeneral: "询问这道菜使用了哪些食材和调味料。",
+        staffQMeaningPersonal: "询问您自己的过敏/饮食限制",
+        staffQMeaningCrossContact: "询问是否存在共用厨具、食用油或烹饪空间导致的交叉污染。",
+        staffQMeaningComprehensive: "将过敏、饮食限制和交叉污染合并为一个问题。",
+        staffQSpeakBtn: "用韩语朗读",
+        staffQStopBtn: "停止",
+        staffQCopyBtn: "复制",
+        staffQCopiedToast: "已复制 — 您可以展示给店员看。",
+        staffQAmbiguousCaveat: "部分自定义过敏项尚未确认,未包含在韩语语句中 — 如有需要请自行说明。",
+        staffQShowScreenNote: "如果语音无法播放,请将此屏幕展示给店员。",
+        reviewsSafetyDisclaimer: "评价仅反映个人体验,并不保证过敏原安全。",
+        reviewYourBadge: "已保存在本设备",
+        reviewEditBtn: "编辑",
+        reviewDeleteBtn: "删除",
+        reviewCancelEditBtn: "取消",
+        reviewUpdateBtn: "更新评价",
+        reviewDeleteConfirm: "要删除这条评价吗?",
+        reviewUpdatedToast: "评价已更新!",
+        reviewDeletedToast: "评价已删除。",
+        toastReviewDataReset: "已保存的评价无法读取,已被重置。",
+        reviewAddedToast: "感谢您分享评价!",
+        reviewSubmitBtn: "提交评价",
+        addYourReviewLabel: "添加您的评价",
         spicyDesc0: "对第一次来韩国旅行的游客来说最安全的等级。您可以放心享用五花肉、酱汁烤肉（不辣）、鸡蛋卷等完全不辣的韩式风味。",
         spicyDesc1: "适合想稍微尝试一点辣味的中间等级。您可以愉快地享用水泡菜、不辣的海鲜葱饼，或香浓的大酱汤。",
         spicyDesc2: "适合懂得享受微辣口味的旅行者。如果您能开心地吃普通的红色泡菜、甜辣的调味炸鸡，以及韩国代表性的辛辣拉面（辛拉面级别），推荐选择这个等级。",
@@ -1672,6 +1807,45 @@
         sourceDemoNote: "(Đây là dữ liệu demo minh họa, không phải thông tin xác nhận thực tế từ nhà hàng.)",
         toastPartialResults: "Một số món không thể nhận diện. Chỉ hiển thị những món đã nhận diện được.",
         toastTranslationFailed: "Dịch thất bại — hiển thị văn bản tiếng Anh gốc thay thế.",
+        toastCustomAmbiguous: "Từ này có thể mang nhiều nghĩa — vui lòng chọn bên dưới.",
+        toastCustomResolved: "Đã lưu với thành phần bạn đã chọn.",
+        toastCustomAlreadyAdded: "Thành phần này giống với một mục bạn đã thêm.",
+        toastCustomAlreadyStandard: "Mục này đã được chọn trong danh sách dị ứng tiêu chuẩn.",
+        badgeExactStandard: "Đã khớp với một chất gây dị ứng tiêu chuẩn trong danh sách.",
+        badgeExactAlias: "Đã khớp qua từ đồng nghĩa đã được xác minh.",
+        badgeCandidateDb: "Thành phần đã biết, nhưng chưa được dùng để đối chiếu rủi ro tự động.",
+        badgeCustomUnlisted: "Chưa có trong cơ sở dữ liệu — vẫn được giữ nguyên trong hồ sơ và thẻ hỏi nhân viên của bạn.",
+        badgeTranslationFailed: "Không thể xác nhận bản dịch tiếng Hàn — đã giữ văn bản gốc.",
+        badgeKbUnavailable: "Hiện không thể kiểm tra cơ sở dữ liệu chất gây dị ứng.",
+        badgeAmbiguous: "Từ này có thể mang nhiều nghĩa — vui lòng làm rõ bên dưới.",
+        staffQTitle: "Hỏi Nhân Viên",
+        staffQTypeGeneral: "Thành Phần",
+        staffQTypePersonal: "Dị Ứng Của Tôi",
+        staffQTypeCrossContact: "Lây Nhiễm Chéo",
+        staffQTypeComprehensive: "Tổng Hợp",
+        staffQMeaningGeneral: "Hỏi về nguyên liệu và gia vị có trong món ăn này.",
+        staffQMeaningPersonal: "Hỏi về dị ứng/chế độ ăn của riêng bạn",
+        staffQMeaningCrossContact: "Hỏi liệu dụng cụ nấu, dầu ăn hoặc khu vực bếp dùng chung có thể gây lây nhiễm chéo không.",
+        staffQMeaningComprehensive: "Kết hợp dị ứng, chế độ ăn và lây nhiễm chéo thành một câu hỏi.",
+        staffQSpeakBtn: "Nói Bằng Tiếng Hàn",
+        staffQStopBtn: "Dừng",
+        staffQCopyBtn: "Sao Chép",
+        staffQCopiedToast: "Đã sao chép — bạn có thể cho nhân viên xem.",
+        staffQAmbiguousCaveat: "Một số dị ứng tự nhập chưa được xác nhận và không có trong câu nói tiếng Hàn — vui lòng tự giải thích thêm nếu cần.",
+        staffQShowScreenNote: "Nếu giọng nói không phát được, hãy cho nhân viên xem màn hình này.",
+        reviewsSafetyDisclaimer: "Đánh giá chỉ phản ánh trải nghiệm cá nhân — không đảm bảo an toàn về dị ứng.",
+        reviewYourBadge: "Đã lưu trên thiết bị này",
+        reviewEditBtn: "Sửa",
+        reviewDeleteBtn: "Xóa",
+        reviewCancelEditBtn: "Hủy",
+        reviewUpdateBtn: "Cập Nhật Đánh Giá",
+        reviewDeleteConfirm: "Xóa đánh giá này?",
+        reviewUpdatedToast: "Đã cập nhật đánh giá!",
+        reviewDeletedToast: "Đã xóa đánh giá.",
+        toastReviewDataReset: "Không thể đọc đánh giá đã lưu nên đã được đặt lại.",
+        reviewAddedToast: "Cảm ơn bạn đã chia sẻ đánh giá!",
+        reviewSubmitBtn: "Gửi Đánh Giá",
+        addYourReviewLabel: "Thêm Đánh Giá Của Bạn",
         spicyDesc0: "Mức an toàn nhất cho du khách lần đầu đến Hàn Quốc. Bạn có thể yên tâm thưởng thức các món hoàn toàn không cay như thịt ba chỉ nướng, bulgogi sốt tương và trứng cuộn.",
         spicyDesc1: "Mức trung bình cho những ai muốn thử một chút cay. Bạn có thể vui vẻ ăn kim chi đã rửa (ít cay), bánh xèo hải sản không cay, hoặc canh tương đậu thơm ngon.",
         spicyDesc2: "Dành cho du khách biết thưởng thức vị cay nồng. Nếu bạn có thể ăn ngon miệng kim chi đỏ thông thường, gà chiên sốt cay ngọt, và mì cay nổi tiếng của Hàn Quốc (mức độ như Shin Ramyun), đây là mức phù hợp với bạn.",
@@ -1797,6 +1971,45 @@
         sourceDemoNote: "(Estos son datos de demostración, no información real verificada por el restaurante.)",
         toastPartialResults: "No se pudieron reconocer algunos elementos. Se muestran solo los reconocidos.",
         toastTranslationFailed: "La traducción falló — se muestra el texto original en inglés.",
+        toastCustomAmbiguous: "Este término puede tener más de un significado — elija abajo.",
+        toastCustomResolved: "Guardado con el ingrediente que seleccionó.",
+        toastCustomAlreadyAdded: "Es el mismo ingrediente que uno que ya agregó.",
+        toastCustomAlreadyStandard: "Ya está marcado en su lista de alergias estándar.",
+        badgeExactStandard: "Coincide con un alérgeno estándar de la lista.",
+        badgeExactAlias: "Coincide mediante un sinónimo verificado.",
+        badgeCandidateDb: "Ingrediente conocido, pero aún no se usa en la verificación automática de riesgo.",
+        badgeCustomUnlisted: "Aún no está en nuestra base de datos — se conserva tal cual en su perfil y tarjeta para el personal.",
+        badgeTranslationFailed: "No se pudo confirmar la traducción al coreano — se conservó el texto original.",
+        badgeKbUnavailable: "No se pudo consultar la base de datos de alérgenos en este momento.",
+        badgeAmbiguous: "Este término puede tener más de un significado — aclare abajo.",
+        staffQTitle: "Preguntar al Personal",
+        staffQTypeGeneral: "Ingredientes",
+        staffQTypePersonal: "Mis Alergias",
+        staffQTypeCrossContact: "Contacto Cruzado",
+        staffQTypeComprehensive: "Todo en Uno",
+        staffQMeaningGeneral: "Pregunta qué ingredientes y condimentos tiene este plato.",
+        staffQMeaningPersonal: "Pregunta sobre sus propias alergias/dieta",
+        staffQMeaningCrossContact: "Pregunta si utensilios, aceite o espacio de cocina compartidos podrían causar contacto cruzado.",
+        staffQMeaningComprehensive: "Combina alergias, dieta y contacto cruzado en una sola pregunta.",
+        staffQSpeakBtn: "Hablar en Coreano",
+        staffQStopBtn: "Detener",
+        staffQCopyBtn: "Copiar",
+        staffQCopiedToast: "Copiado — puede mostrárselo al personal.",
+        staffQAmbiguousCaveat: "Algunas alergias personalizadas no pudieron confirmarse y no están incluidas en la frase en coreano — aclárelas usted mismo si es necesario.",
+        staffQShowScreenNote: "Si el audio no funciona, muestre esta pantalla al personal.",
+        reviewsSafetyDisclaimer: "Las reseñas reflejan experiencias personales — no garantizan la seguridad frente a alérgenos.",
+        reviewYourBadge: "Guardado en este dispositivo",
+        reviewEditBtn: "Editar",
+        reviewDeleteBtn: "Eliminar",
+        reviewCancelEditBtn: "Cancelar",
+        reviewUpdateBtn: "Actualizar Reseña",
+        reviewDeleteConfirm: "¿Eliminar esta reseña?",
+        reviewUpdatedToast: "¡Reseña actualizada!",
+        reviewDeletedToast: "Reseña eliminada.",
+        toastReviewDataReset: "No se pudieron leer sus reseñas guardadas y se reiniciaron.",
+        reviewAddedToast: "¡Gracias por compartir su reseña!",
+        reviewSubmitBtn: "Enviar Reseña",
+        addYourReviewLabel: "Agregar Su Reseña",
         spicyDesc0: "El nivel más seguro para viajeros que visitan Corea por primera vez. Puedes disfrutar tranquilamente de sabores coreanos sin nada de picante, como samgyeopsal, bulgogi marinado en soja y tortilla de huevo enrollada.",
         spicyDesc1: "Un nivel intermedio para quienes quieren atreverse un poco con el picante. Puedes disfrutar felizmente de kimchi suave (lavado), panqueque de mariscos sin picante, o un sabroso guiso de doenjang.",
         spicyDesc2: "Para viajeros que saben disfrutar de un toque picante. Si puedes comer con gusto el kimchi rojo normal, el pollo yangnyeom dulce y picante, y el famoso ramen picante de Corea (nivel Shin Ramyun), este nivel es para ti.",
@@ -1922,6 +2135,45 @@
         sourceDemoNote: "(이 화면은 데모용 예시 데이터이며, 실제 매장이 확인한 정보가 아닙니다.)",
         toastPartialResults: "일부 항목은 인식하지 못했습니다. 인식된 음식만 표시합니다.",
         toastTranslationFailed: "번역에 실패했습니다 — 원본 영어 텍스트를 대신 표시합니다.",
+        toastCustomAmbiguous: "이 표현은 여러 의미로 해석될 수 있습니다 — 아래에서 선택해 주세요.",
+        toastCustomResolved: "선택한 성분으로 저장되었습니다.",
+        toastCustomAlreadyAdded: "이미 추가한 성분과 같습니다.",
+        toastCustomAlreadyStandard: "이미 표준 알레르기 목록에 선택되어 있습니다.",
+        badgeExactStandard: "목록의 표준 알레르겐과 일치합니다.",
+        badgeExactAlias: "검증된 동의어로 일치했습니다.",
+        badgeCandidateDb: "DB에 있는 성분이지만 아직 자동 위험 판정에는 쓰이지 않습니다.",
+        badgeCustomUnlisted: "아직 DB에 없는 성분입니다 — 프로필과 직원 안내 카드에는 그대로 유지됩니다.",
+        badgeTranslationFailed: "한국어 번역을 확인하지 못했습니다 — 원문을 그대로 유지합니다.",
+        badgeKbUnavailable: "지금은 알레르겐 DB를 확인할 수 없습니다.",
+        badgeAmbiguous: "이 표현은 여러 의미로 해석될 수 있습니다 — 아래에서 구체적으로 선택해 주세요.",
+        staffQTitle: "직원에게 질문하기",
+        staffQTypeGeneral: "재료 확인",
+        staffQTypePersonal: "내 알레르기",
+        staffQTypeCrossContact: "교차 접촉",
+        staffQTypeComprehensive: "종합 질문",
+        staffQMeaningGeneral: "이 음식에 어떤 재료와 양념이 들어가는지 묻는 질문입니다.",
+        staffQMeaningPersonal: "회원님의 알레르기/식이 제한에 대해 묻는 질문입니다",
+        staffQMeaningCrossContact: "공용 조리도구, 기름, 조리 공간으로 인한 교차 접촉 가능성을 묻는 질문입니다.",
+        staffQMeaningComprehensive: "알레르기, 식이 제한, 교차 접촉을 하나로 묶어 묻는 질문입니다.",
+        staffQSpeakBtn: "한국어로 말하기",
+        staffQStopBtn: "중지",
+        staffQCopyBtn: "복사",
+        staffQCopiedToast: "복사되었습니다 — 직원에게 보여줄 수도 있습니다.",
+        staffQAmbiguousCaveat: "일부 커스텀 알레르기 입력은 의미가 확인되지 않아 한국어 발화에 포함되지 않았습니다 — 필요하면 직접 설명해 주세요.",
+        staffQShowScreenNote: "음성이 재생되지 않으면 이 화면을 직원에게 보여주세요.",
+        reviewsSafetyDisclaimer: "리뷰는 개인적인 경험일 뿐이며, 알레르기 안전성을 보장하지 않습니다.",
+        reviewYourBadge: "이 기기에 저장됨",
+        reviewEditBtn: "수정",
+        reviewDeleteBtn: "삭제",
+        reviewCancelEditBtn: "취소",
+        reviewUpdateBtn: "리뷰 수정하기",
+        reviewDeleteConfirm: "이 리뷰를 삭제하시겠습니까?",
+        reviewUpdatedToast: "리뷰가 수정되었습니다!",
+        reviewDeletedToast: "리뷰가 삭제되었습니다.",
+        toastReviewDataReset: "저장된 리뷰를 불러오지 못해 초기화되었습니다.",
+        reviewAddedToast: "리뷰를 공유해 주셔서 감사합니다!",
+        reviewSubmitBtn: "리뷰 제출",
+        addYourReviewLabel: "리뷰 작성하기",
         spicyDesc0: "처음 한국을 방문하는 여행자에게 가장 안전한 단계입니다. 삼겹살, 간장 불고기, 계란말이처럼 매운맛이 전혀 없는 한국의 맛을 편안하게 즐길 수 있어요.",
         spicyDesc1: "매운 음식에 조금씩 도전해 보고 싶은 분들을 위한 중간 단계입니다. 씻은 김치나 맵지 않은 해물파전, 구수한 된장찌개 정도를 기분 좋게 즐길 수 있어요.",
         spicyDesc2: "매콤한 맛을 즐길 줄 아는 여행자를 위한 단계입니다. 일반적인 빨간 김치, 달콤매콤한 양념치킨, 그리고 한국의 대표적인 매운 라면(신라면 수준)을 맛있게 드실 수 있다면 추천해요.",
@@ -2714,6 +2966,50 @@
       }
     }
 
+    // ==========================================
+    // [IMP-14] 리뷰 데이터 영속성 (Package 3)
+    // ==========================================
+    // 기존 REVIEWS_DATABASE(데모 시드 데이터, 아래 선언)는 절대 건드리지
+    // 않는다 — 실제 사용자가 작성한 리뷰는 별도의 localStorage 키에 분리
+    // 저장한다("데모 리뷰와 실제 사용자 작성 리뷰를 구분" §5 지시). 두 가지를
+    // 같은 키에 합쳐 저장하면, 데모 데이터가 "이 기기에서 실제로 작성됨"으로
+    // 잘못 표시될 위험이 생긴다.
+    const USER_REVIEWS_STORAGE_KEY = 'fitbridge_user_reviews_v1';
+    const USER_REVIEW_SCHEMA_VERSION = 1;
+
+    function saveUserReviewsToStorage() {
+      try {
+        const payload = { schemaVersion: USER_REVIEW_SCHEMA_VERSION, reviews: state.userReviews };
+        localStorage.setItem(USER_REVIEWS_STORAGE_KEY, JSON.stringify(payload));
+      } catch (err) {
+        console.error('[IMP-14] 리뷰를 로컬에 저장하지 못했습니다:', err);
+      }
+    }
+
+    // 손상된 저장 데이터(파싱 실패, 예상과 다른 구조)를 만나도 앱이 멈추지
+    // 않고 빈 상태로 안전하게 되돌아간다 — fail-closed와 같은 원칙을 데이터
+    // 무결성에도 적용(§5 "손상된 저장 데이터 처리").
+    function loadUserReviewsFromStorage() {
+      try {
+        const raw = localStorage.getItem(USER_REVIEWS_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || typeof parsed.reviews !== 'object' || parsed.reviews === null || Array.isArray(parsed.reviews)) {
+          throw new Error('unexpected shape');
+        }
+        // foodId별 값이 배열이 아니면 그 항목만 버린다(부분 손상도 전체를
+        // 날리지 않는다 — IMP-02의 "부분 응답 생존" 원칙과 같은 정신).
+        const cleaned = {};
+        Object.keys(parsed.reviews).forEach(foodId => {
+          if (Array.isArray(parsed.reviews[foodId])) cleaned[foodId] = parsed.reviews[foodId];
+        });
+        return cleaned;
+      } catch (err) {
+        console.error('[IMP-14] 저장된 리뷰 데이터가 손상되어 초기화합니다:', err);
+        return null; // null은 "손상되어 리셋됨"을 호출부에 알리는 신호(아래 onload 참고)
+      }
+    }
+
     window.onload = function() {
       // Each step is isolated so that a failure in one (e.g. map or exchange
       // rate API being blocked/offline) never prevents the rest of the app
@@ -2768,6 +3064,20 @@
 
       const initialLang = hasSavedProfile ? (savedProfile.lang || 'en') : 'en';
       const initialSpicy = hasSavedProfile ? state.selectedSpicy : 1;
+
+      // [IMP-14] 사용자 작성 리뷰는 프로필 저장 여부와 무관하게 항상 복원한다
+      // (프로필을 초기화해도 과거에 쓴 리뷰까지 사라질 필요는 없다).
+      safeRun(() => {
+        const loaded = loadUserReviewsFromStorage();
+        if (loaded === null) {
+          // 손상된 데이터 — 빈 상태로 리셋하고 한 번만 사용자에게 알린다.
+          state.userReviews = {};
+          saveUserReviewsToStorage();
+          showToast(translations[initialLang] ? translations[initialLang].toastReviewDataReset : translations.en.toastReviewDataReset);
+        } else {
+          state.userReviews = loaded;
+        }
+      }, 'loadUserReviewsFromStorage');
 
       safeRun(fetchLiveExchangeRates, 'fetchLiveExchangeRates');
       safeRun(renderAllergiesGrid, 'renderAllergiesGrid');
@@ -2877,6 +3187,11 @@
         selectLocation(state.selectedLocation.id);
       }
       updateTtsDraft();
+      // [IMP-08] 데모 단일 스캔(지도 "Scan Menu Here") 화면은 언어가 바뀌어도
+      // 지금까지 배너/라벨이 갱신되지 않았다 — AI 경로만 재분석으로 갱신됐을
+      // 뿐이다. recalcCurrentScanSafety()는 AI를 부르지 않으므로 두 경로
+      // 모두에 안전하게 호출할 수 있다(AI 경로는 아래에서 바로 다시 그려짐).
+      recalcCurrentScanSafety();
 
       // Persist immediately, but only once the user is actually inside the
       // app — the very first setLanguage('en') call on a fresh visit runs
@@ -2953,6 +3268,12 @@
       document.getElementById('btn-scan-loc-menu').innerText = trans.scanBtn;
       document.getElementById('lbl-how-to-eat-text').innerText = trans.howToEatLabel;
 
+      // [IMP-14] Reviews — 기존엔 영어로 고정돼 있던 리뷰 작성 폼 문구.
+      document.getElementById('reviews-safety-disclaimer').innerText = trans.reviewsSafetyDisclaimer;
+      document.getElementById('lbl-add-review').innerText = trans.addYourReviewLabel;
+      document.getElementById('btn-submit-review').innerText = state.editingReviewId ? trans.reviewUpdateBtn : trans.reviewSubmitBtn;
+      document.getElementById('btn-cancel-edit-review').innerText = trans.reviewCancelEditBtn;
+
       // Scanner View
       document.getElementById('scan-title').innerText = trans.scanTitle;
       document.getElementById('scan-subtitle').innerText = trans.scanSub;
@@ -2960,7 +3281,10 @@
       document.getElementById('cam-blank-desc').innerText = trans.camDesc;
       document.getElementById('lbl-detected-dishes').innerText = trans.detectedDishes;
       document.getElementById('ocr-results-header').innerText = trans.ocrHeader;
-      document.getElementById('btn-sound-alarm').innerText = trans.soundAlarm;
+      // [IMP-09] 기존 "Ask Waiter" 단일 버튼은 updateStaffQuestionPanel()이
+      // 매번 새로 그리는 직원 질문 패널로 대체됐다 — 그 함수가 setLanguage()의
+      // recalcCurrentScanSafety() 호출을 통해 이미 매번 다시 그려지므로
+      // 여기서 별도로 손댈 요소가 없다.
       document.getElementById('spec-name').innerText = trans.specName;
       document.getElementById('spec-ingredients').innerText = trans.specIngs;
       document.getElementById('spec-allergy-list').innerText = trans.specAlls;
@@ -3033,6 +3357,16 @@
 
       // Update the "foreigners at this level typically eat..." guidance text
       updateSpicyDescription();
+
+      // [IMP-08] setSpicy()는 그동안 saveProfileToStorage()를 호출한 적이
+      // 없었다(누락된 이벤트 핸들러) — 맵기 설정을 바꿔도 새로고침하면
+      // 사라졌다. setLanguage()와 같은 가드: 온보딩이 끝나기 전(main-app이
+      // 아직 숨겨진 상태) 호출되는 초기화용 setSpicy까지 onboardingComplete로
+      // 잘못 저장되지 않게 한다.
+      if (!document.getElementById('main-app').classList.contains('hidden')) {
+        saveProfileToStorage();
+      }
+      onProfileChanged();
     }
 
     // Refresh the spice-tolerance guidance text based on current language + selected level
@@ -3052,6 +3386,7 @@
       state.dietary = modalSelect.value;
       onboardSelect.value = modalSelect.value;
       saveProfileToStorage();
+      onProfileChanged();
     }
 
     // Onboarding diet dropdown previously had no handler at all — selecting a
@@ -3062,6 +3397,7 @@
       state.dietary = onboardSelect.value;
       if (modalSelect) modalSelect.value = onboardSelect.value;
       saveProfileToStorage();
+      onProfileChanged();
     }
 
     // Synchronize nationality/country text inputs (onboarding <-> modal)
@@ -3071,6 +3407,7 @@
       state.nationality = modalInput.value;
       if (onboardInput) onboardInput.value = modalInput.value;
       saveProfileToStorage();
+      onProfileChanged();
     }
 
     function syncOnboardingNationality() {
@@ -3079,6 +3416,7 @@
       state.nationality = onboardInput.value;
       if (modalInput) modalInput.value = onboardInput.value;
       saveProfileToStorage();
+      onProfileChanged();
     }
 
     // Render 19 Standard Food Allergies Checkboxes
@@ -3120,8 +3458,8 @@
       }
 
       renderAllergiesGrid();
-      updateTtsDraft();
       saveProfileToStorage();
+      onProfileChanged();
     }
 
     // Clear all checked items
@@ -3129,13 +3467,13 @@
       state.selectedAllergies.clear();
       state.customAllergies = [];
       document.getElementById('custom-allergy-badges').innerHTML = '';
-      
+
       const badge = document.getElementById('allergy-badge');
       badge.classList.add('hidden');
 
       renderAllergiesGrid();
-      updateTtsDraft();
       saveProfileToStorage();
+      onProfileChanged();
       showToast(translations[state.lang].toastAllergyClear);
     }
 
@@ -3213,8 +3551,8 @@
           input.value = '';
           showToast(
             duplicate.kind === 'standard'
-              ? translations[state.lang].toastCustomAlreadyStandard || '이미 표준 알레르기 목록에 선택되어 있습니다.'
-              : translations[state.lang].toastCustomAlreadyAdded || '이미 등록된 알레르기와 같은 성분입니다.'
+              ? translations[state.lang].toastCustomAlreadyStandard
+              : translations[state.lang].toastCustomAlreadyAdded
           );
           return;
         }
@@ -3222,11 +3560,11 @@
 
       state.customAllergies.push(resolved);
       renderCustomAllergyBadges();
-      updateTtsDraft();
       saveProfileToStorage();
+      onProfileChanged();
 
       if (resolved.mappingStatus === 'ambiguous') {
-        showToast(translations[state.lang].toastCustomAmbiguous || `"${val}" 입력의 의미가 모호합니다 — 아래에서 구체적으로 선택해 주세요.`);
+        showToast(translations[state.lang].toastCustomAmbiguous);
       } else {
         showToast(translations[state.lang].toastCustomAdd + `${val} (${resolved.translated})`);
       }
@@ -3242,7 +3580,7 @@
 
       const duplicate = findDuplicateCanonicalAllergy(chosenCanonicalId);
       if (duplicate) {
-        showToast(translations[state.lang].toastCustomAlreadyAdded || '이미 등록된 알레르기와 같은 성분입니다.');
+        showToast(translations[state.lang].toastCustomAlreadyAdded);
         removeCustomAllergy(originalText);
         return;
       }
@@ -3256,9 +3594,9 @@
       if (standardEntry) entry.translated = standardEntry.ko;
 
       renderCustomAllergyBadges();
-      updateTtsDraft();
       saveProfileToStorage();
-      showToast(translations[state.lang].toastCustomResolved || '선택한 성분으로 등록되었습니다.');
+      onProfileChanged();
+      showToast(translations[state.lang].toastCustomResolved);
     }
 
     // [IMP-12] LocalStorage 마이그레이션 — IMP-11의 migrateLegacyAllergyIds와
@@ -3287,7 +3625,7 @@
       if (changed) {
         saveProfileToStorage();
         renderCustomAllergyBadges();
-        updateTtsDraft();
+        onProfileChanged();
         console.info('[IMP-12] 기존 커스텀 알레르기 데이터를 표준 매칭 스키마로 마이그레이션 완료:', state.customAllergies.length, '건 확인');
       }
     }
@@ -3295,14 +3633,16 @@
     // [IMP-12] mappingStatus별로 짧은 상태 아이콘 + 설명을 보여준다.
     // 내부 id나 데이터 구조(canonicalId, evidenceScope 등)는 사용자에게
     // 노출하지 않고, 사람이 읽을 짧은 한 줄 설명만 보여준다(§10 지시 그대로).
+    // [IMP-08/Package 3 §6] 과거엔 title이 영어로 고정돼 있었다(화면 언어와
+    // 무관하게 항상 영어 툴팁) — 이제 translations에서 현재 언어로 가져온다.
     const CUSTOM_ALLERGY_STATUS_BADGES = {
-      exact_standard: { icon: '✓', title: 'Matched to a standard allergen in our list.' },
-      exact_alias: { icon: '✓', title: 'Matched via a verified synonym.' },
-      candidate_db: { icon: 'ℹ️', title: 'Known ingredient, but not yet used in automatic risk matching.' },
-      custom_unlisted: { icon: '⚠️', title: 'Not in our database yet — kept as-is for your profile & staff card.' },
-      translation_failed: { icon: '❗', title: 'Could not confirm the Korean translation — original text kept.' },
-      kb_unavailable: { icon: '❔', title: 'Could not check our allergen database right now.' },
-      ambiguous: { icon: '❓', title: 'This term could mean more than one thing — please clarify below.' },
+      exact_standard: { icon: '✓', titleKey: 'badgeExactStandard' },
+      exact_alias: { icon: '✓', titleKey: 'badgeExactAlias' },
+      candidate_db: { icon: 'ℹ️', titleKey: 'badgeCandidateDb' },
+      custom_unlisted: { icon: '⚠️', titleKey: 'badgeCustomUnlisted' },
+      translation_failed: { icon: '❗', titleKey: 'badgeTranslationFailed' },
+      kb_unavailable: { icon: '❔', titleKey: 'badgeKbUnavailable' },
+      ambiguous: { icon: '❓', titleKey: 'badgeAmbiguous' },
     };
 
     // Render small custom input allergen badges with dual-language information.
@@ -3318,7 +3658,7 @@
 
         const span = document.createElement('span');
         span.className = "inline-flex flex-col gap-1 text-[11px] bg-vintage-clay/20 text-vintage-terracotta px-2.5 py-1.5 rounded-xl font-bold vintage-border";
-        span.title = statusInfo.title;
+        span.title = kbText(statusInfo.titleKey);
 
         const row = document.createElement('span');
         row.className = 'inline-flex items-center gap-1.5';
@@ -3371,9 +3711,9 @@
     function removeCustomAllergy(originalText) {
       state.customAllergies = state.customAllergies.filter(x => x.original !== originalText);
       renderCustomAllergyBadges();
-      updateTtsDraft();
       saveProfileToStorage();
       updateAllergyBadgeCount();
+      onProfileChanged();
       showToast(translations[state.lang].toastCustomRemove + originalText);
     }
 
@@ -3381,8 +3721,10 @@
     // When the person has a diet preference set (vegan/halal/vegetarian),
     // that's spoken first automatically. If diet is "none", only the
     // allergy information is announced, same as before.
-    function getSpeechScript(dishNameText) {
-      const targetDish = dishNameText || '이 요리';
+    // [IMP-09] getSpeechScript()와 generateStaffQuestions() 둘 다 "지금 발화해도
+    // 되는(확정된) 한국어 알레르기 목록"이 필요하다 — 중복 로직 제거를 위해
+    // 공통 헬퍼로 뽑았다. 동작은 기존 getSpeechScript 내부 로직과 완전히 동일.
+    function getSpokenAllergyListKo() {
       const allergyListKo = [];
       // [IMP-12] 같은 알레르겐을 표준 체크박스와 커스텀 입력 양쪽에서 중복
       // 발화하지 않기 위한 집합(State Consistency — "같은 알레르기는 앱
@@ -3407,13 +3749,19 @@
         spokenKeys.add(dedupeKey);
         allergyListKo.push(c.translated);
       });
+      return allergyListKo;
+    }
 
-      const dietPhrases = {
-        vegan: '저는 비건이라 고기, 생선, 유제품, 계란, 꿀 등 모든 동물성 재료가 들어간 음식을 먹을 수 없습니다.',
-        halal: '저는 할랄 음식만 먹을 수 있습니다. 돼지고기나 술이 들어간 음식은 피해야 합니다.',
-        vegetarian: '저는 채식주의자라 고기와 생선이 들어간 음식을 먹지 않습니다.'
-      };
-      const dietPhrase = dietPhrases[state.dietary] || '';
+    const DIET_PHRASES_KO = {
+      vegan: '저는 비건이라 고기, 생선, 유제품, 계란, 꿀 등 모든 동물성 재료가 들어간 음식을 먹을 수 없습니다.',
+      halal: '저는 할랄 음식만 먹을 수 있습니다. 돼지고기나 술이 들어간 음식은 피해야 합니다.',
+      vegetarian: '저는 채식주의자라 고기와 생선이 들어간 음식을 먹지 않습니다.'
+    };
+
+    function getSpeechScript(dishNameText) {
+      const targetDish = dishNameText || '이 요리';
+      const allergyListKo = getSpokenAllergyListKo();
+      const dietPhrase = DIET_PHRASES_KO[state.dietary] || '';
 
       let allergyPhrase;
       if (allergyListKo.length === 0) {
@@ -3442,23 +3790,42 @@
     }
 
     // Speak a given Korean phrase aloud using the browser's speech synthesis.
+    // [IMP-09] 반복 클릭 시 중복 발화 방지: 이미 말하는 중이면 새 발화를
+    // 또 시작하지 않는다(여러 발화가 겹쳐 들리는 문제 방지). 지원하지 않는
+    // 환경에서는 toastTtsFail만 띄우고 끝낸다 — 화면에는 항상 한국어 텍스트가
+    // 그대로 떠 있으므로(직원 질문 패널/§IMP-09), 음성이 안 되어도 텍스트
+    // 대체 수단은 이미 확보되어 있다.
     function speakKorean(textToSpeak) {
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(textToSpeak);
-        utterance.lang = 'ko-KR'; 
-        utterance.rate = 0.9;
-
-        const voices = window.speechSynthesis.getVoices();
-        const koVoice = voices.find(v => v.lang.startsWith('ko'));
-        if (koVoice) {
-          utterance.voice = koVoice;
-        }
-
-        window.speechSynthesis.speak(utterance);
-        showToast(translations[state.lang].toastTtsSuccess);
-      } else {
+      if (!('speechSynthesis' in window)) {
         showToast(translations[state.lang].toastTtsFail);
+        return;
       }
+      if (state.isSpeaking) return;
+
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.lang = 'ko-KR';
+      utterance.rate = 0.9;
+
+      const voices = window.speechSynthesis.getVoices();
+      const koVoice = voices.find(v => v.lang.startsWith('ko'));
+      if (koVoice) {
+        utterance.voice = koVoice;
+      }
+
+      state.isSpeaking = true;
+      utterance.onend = () => { state.isSpeaking = false; };
+      utterance.onerror = () => { state.isSpeaking = false; };
+
+      window.speechSynthesis.speak(utterance);
+      showToast(translations[state.lang].toastTtsSuccess);
+    }
+
+    // [IMP-09] 재생 중지 — 사용자가 말이 너무 빠르거나 잘못 눌렀을 때 바로 멈춘다.
+    function stopSpeakingKorean() {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      state.isSpeaking = false;
     }
 
     // Play actual Speech Synthesis voice on standard browser (always speaking in KOREAN)
@@ -3466,14 +3833,174 @@
       speakKorean(getSpeechScript());
     }
 
-    // "Ask Waiter in Korean" button on the scan result screen. Stays right
-    // where the person is (no tab switch) and asks about the dish(es) that
-    // were actually just scanned, instead of a generic phrase.
-    function triggerQuickAllergySpeech() {
+    // ==========================================
+    // [IMP-09] 맞춤형 직원 질문 (Package 3)
+    // ==========================================
+    // 4가지 질문 유형 — 전부 규칙 기반 생성(추가 Gemini 호출 없음):
+    //   A. general        — 재료/양념 확인(누구에게나 항상 유효)
+    //   B. personal        — 사용자가 등록한 표준+커스텀 알레르기, 식이 제한
+    //      (AI가 이 음식에서 검출하지 못했더라도 전부 포함 — §4 지시)
+    //   C. crossContact    — 공용 조리도구/기름/조리공간. 지식 DB(§IMP-18D-2)에서
+    //      "AI가 직접 검출하지 못했지만 사용자 프로필과 관련된 후보 성분"이
+    //      있으면 구체적인 재료명을 언급, 없으면 일반적인 질문으로 대체한다.
+    //   D. comprehensive   — 위 세 가지를 상황에 맞게 하나로 합친다.
+    const STAFF_QUESTION_TYPES = ['general', 'personal', 'crossContact', 'comprehensive'];
+
+    // 현재 화면에 표시된 스캔 결과의 dish 객체들(멀티 AI 스캔 또는 데모 단일
+    // 스캔) — §IMP-07에서 도입한 lastRendered* 재사용. AI를 다시 부르지 않는다.
+    function getCurrentScanDishesForStaffQuestion() {
+      if (state.lastScanRenderKind === 'multi' && Array.isArray(state.lastRenderedDishes)) return state.lastRenderedDishes;
+      if (state.lastScanRenderKind === 'single' && state.lastRenderedMatchObj) return [state.lastRenderedMatchObj];
+      return [];
+    }
+
+    function generateStaffQuestions() {
+      const dishes = getCurrentScanDishesForStaffQuestion();
       const names = state.lastScannedDishNamesKo || [];
-      const dishNameText = names.length > 0 ? names.join(', ') : '이 요리';
-      const script = getSpeechScript(dishNameText);
-      speakKorean(script);
+      const dishNameKo = names.length > 0 ? names.join(', ') : '이 요리';
+      const dietPhraseKo = DIET_PHRASES_KO[state.dietary] || '';
+      const allergyListKo = getSpokenAllergyListKo();
+
+      const general = `${dishNameKo}에 어떤 재료와 양념이 들어가나요?`;
+
+      let personal;
+      if (allergyListKo.length === 0 && !dietPhraseKo) {
+        personal = `${dishNameKo}에 알레르기를 유발할 수 있는 성분이 있나요?`;
+      } else {
+        const parts = [];
+        if (dietPhraseKo) parts.push(dietPhraseKo);
+        if (allergyListKo.length > 0) parts.push(`저는 [ ${allergyListKo.join(', ')} ] 알레르기가 있습니다. ${dishNameKo}에 혹시 해당 성분이 들어가나요?`);
+        personal = parts.join(' ');
+      }
+      // [§4] 할랄은 돼지고기 미검출만으로 안전을 단정하지 않는다 — 술/라드도 함께 확인.
+      if (state.dietary === 'halal') {
+        personal += ' 돼지고기, 돼지고기로 만든 기름(라드), 술이 들어가는지도 확인해 주세요.';
+      }
+
+      // [§4 예시] 참깨 알레르기 사용자가 참기름이 들어간 음식을 스캔한 경우처럼,
+      // AI가 알레르겐으로 직접 지목하지 않았지만 지식 DB상 관련 있는 재료가
+      // 있으면 구체적으로 언급한다. buildKnowledgeReportForDish는 순수
+      // 함수라 여기서 직접 호출해도 지식 DB 로딩 타이밍 문제가 없다.
+      const crossContactCandidates = new Set();
+      dishes.forEach(dish => {
+        if (!FOOD_KB_MODULE_AVAILABLE) return;
+        const report = buildKnowledgeReportForDish(dish, 'staff_question', 'staffq');
+        (report && report.userAdvisories || []).forEach(group => {
+          group.findings.forEach(f => { if (f.originalIngredient) crossContactCandidates.add(f.originalIngredient); });
+        });
+      });
+      const candidateList = Array.from(crossContactCandidates);
+      const crossContact = candidateList.length > 0
+        ? `${dishNameKo}에 ${candidateList.join(', ')}을(를) 조리 기구나 기름, 조리 공간에서 같이 사용하는지 확인해 주실 수 있나요? 제 알레르기와 관련이 있을 수 있어서요.`
+        : `${dishNameKo}을 만들 때 저에게 위험한 알레르기 성분이 들어간 조리도구, 기름, 조리 공간을 함께 쓰는지 확인해 주실 수 있나요?`;
+
+      const comprehensiveParts = [];
+      if (dietPhraseKo) comprehensiveParts.push(dietPhraseKo);
+      if (allergyListKo.length > 0) comprehensiveParts.push(`저는 [ ${allergyListKo.join(', ')} ] 알레르기가 있습니다.`);
+      comprehensiveParts.push(`${dishNameKo}에 어떤 재료가 들어가는지, 그리고 ${candidateList.length > 0 ? candidateList.join(', ') + ' 등이 조리 도구나 기름을 통해 같이 섞일 가능성이 있는지' : '제 알레르기 성분이 조리 과정에서 같이 섞일 가능성이 있는지'} 확인해 주실 수 있나요?`);
+      if (state.dietary === 'halal') comprehensiveParts.push('돼지고기나 술이 들어가는지도 함께 확인해 주세요.');
+      const comprehensive = comprehensiveParts.join(' ');
+
+      // [§4] 의미가 확인되지 않은(ambiguous, 미확정) 커스텀 알레르기는 한국어
+      // 발화문에는 포함되지 않는다(getSpokenAllergyListKo가 걸러냄) — 그 사실을
+      // 사용자 자신에게는(한국어 아님) 캐벗으로 알려준다("원본 유지 + 번역 한계 안내").
+      const hasAmbiguousCustomAllergyCaveat = state.customAllergies.some(c => c.mappingStatus === 'ambiguous' && !c.userConfirmed);
+
+      return { general, personal, crossContact, comprehensive, hasAmbiguousCustomAllergyCaveat, dishNameKo };
+    }
+
+    // 사용자 UI 언어로, 각 질문 유형이 "무엇을 묻는지" 짧게 설명한다(한국어
+    // 발화문 자체를 번역하는 게 아니라, 유형별 고정 설명 + 사용자 프로필
+    // 요약 — Gemini 호출 없이 번역 키만으로 처리).
+    function describeStaffQuestionMeaning(type) {
+      const trans = translations[state.lang];
+      const allergenLabels = Array.from(state.selectedAllergies).map(getAllergenDisplayLabel)
+        .concat(state.customAllergies.filter(c => c.mappingStatus !== 'ambiguous').map(c => c.original));
+      const dietLabel = { vegan: trans.dietVegan, halal: trans.dietHalal, vegetarian: trans.dietVegetarian }[state.dietary] || '';
+      const profileBits = [dietLabel, ...allergenLabels].filter(Boolean).join(', ');
+      if (type === 'general') return trans.staffQMeaningGeneral;
+      if (type === 'personal') return profileBits ? `${trans.staffQMeaningPersonal} (${profileBits})` : trans.staffQMeaningPersonal;
+      if (type === 'crossContact') return trans.staffQMeaningCrossContact;
+      return trans.staffQMeaningComprehensive;
+    }
+
+    function setStaffQuestionType(type) {
+      if (STAFF_QUESTION_TYPES.indexOf(type) === -1) return;
+      state.staffQuestionType = type;
+      updateStaffQuestionPanel();
+    }
+
+    function getActiveStaffQuestionType() {
+      return STAFF_QUESTION_TYPES.indexOf(state.staffQuestionType) !== -1 ? state.staffQuestionType : 'comprehensive';
+    }
+
+    // 스캔 결과 화면의 직원 질문 패널을 (다시) 그린다. 프로필/언어가 바뀔
+    // 때마다, 그리고 스캔이 끝날 때마다 호출된다 — 매번 generateStaffQuestions()
+    // 만 다시 돌릴 뿐 네트워크 호출은 전혀 없다.
+    function updateStaffQuestionPanel() {
+      const container = document.getElementById('staff-question-panel');
+      if (!container) return;
+      if (!state.hasScannedResult) { container.innerHTML = ''; return; }
+
+      const trans = translations[state.lang];
+      const questions = generateStaffQuestions();
+      const activeType = getActiveStaffQuestionType();
+      const currentText = questions[activeType];
+
+      const tabLabelKeys = { general: 'staffQTypeGeneral', personal: 'staffQTypePersonal', crossContact: 'staffQTypeCrossContact', comprehensive: 'staffQTypeComprehensive' };
+      const tabsHtml = STAFF_QUESTION_TYPES.map(type => {
+        const isActive = type === activeType;
+        return `<button type="button" onclick="setStaffQuestionType('${type}')" class="flex-1 py-1.5 text-[10px] font-bold rounded-lg transition ${isActive ? 'bg-vintage-terracotta text-white' : 'bg-white text-vintage-olive hover:bg-vintage-beige/60'}">${escapeHtml(trans[tabLabelKeys[type]])}</button>`;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="bg-vintage-beige/30 p-3 rounded-xl space-y-2.5 vintage-border">
+          <span class="text-[10px] font-bold text-vintage-olive uppercase">${escapeHtml(trans.staffQTitle)}</span>
+          <div class="flex gap-1">${tabsHtml}</div>
+          <p class="text-[10px] text-vintage-olive">${escapeHtml(describeStaffQuestionMeaning(activeType))}</p>
+          <div class="p-3 bg-white rounded-lg text-sm font-semibold text-vintage-dark leading-relaxed" id="staff-question-text">${escapeHtml(currentText)}</div>
+          ${questions.hasAmbiguousCustomAllergyCaveat ? `<p class="text-[10px] text-amber-700">${escapeHtml(trans.staffQAmbiguousCaveat)}</p>` : ''}
+          <p class="text-[9px] text-vintage-olive italic">${escapeHtml(trans.staffQShowScreenNote)}</p>
+          <div class="flex gap-2">
+            <button type="button" onclick="speakCurrentStaffQuestion()" class="flex-1 py-2.5 bg-vintage-terracotta text-white rounded-lg text-xs font-bold hover:bg-vintage-dark transition">${escapeHtml(trans.staffQSpeakBtn)}</button>
+            <button type="button" onclick="stopSpeakingKorean()" class="px-3 py-2.5 bg-vintage-dark/10 text-vintage-dark rounded-lg text-xs font-bold hover:bg-vintage-dark/20 transition">${escapeHtml(trans.staffQStopBtn)}</button>
+            <button type="button" onclick="copyCurrentStaffQuestion()" class="px-3 py-2.5 bg-vintage-dark/10 text-vintage-dark rounded-lg text-xs font-bold hover:bg-vintage-dark/20 transition">${escapeHtml(trans.staffQCopyBtn)}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function speakCurrentStaffQuestion() {
+      const questions = generateStaffQuestions();
+      speakKorean(questions[getActiveStaffQuestionType()]);
+    }
+
+    // 클립보드 API가 없는(또는 권한이 없는) 환경을 위한 대체 복사 수단.
+    function fallbackCopyText(text, onDone) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        onDone();
+      } catch (err) {
+        console.error('[IMP-09] 질문 복사 실패:', err);
+      }
+    }
+
+    function copyCurrentStaffQuestion() {
+      const questions = generateStaffQuestions();
+      const text = questions[getActiveStaffQuestionType()];
+      const onCopied = () => showToast(translations[state.lang].staffQCopiedToast);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(onCopied).catch(() => fallbackCopyText(text, onCopied));
+      } else {
+        fallbackCopyText(text, onCopied);
+      }
     }
 
     // Dynamically load the Google Maps script with a given language, then run a callback.
@@ -3747,6 +4274,39 @@
       // 만약 이전 성공 스캔의 번역 응답이 아직 날아오는 중이었다면 그것도
       // 이제는 지워진 화면에 반영되면 안 되므로 같이 무효화한다.
       state.translationRequestSeq += 1;
+      // [IMP-07] 더는 유효한 결과가 없으니 재계산용 캐시도 비운다.
+      state.lastRenderedDishes = null;
+      state.lastRenderedMatchObj = null;
+      state.lastScanRenderKind = null;
+      updateStaffQuestionPanel();
+    }
+
+    // [IMP-07] 프로필(표준/커스텀 알레르기, 맵기, 식이 제한)이 바뀔 때마다
+    // 호출된다. Gemini 이미지 분석이나 번역 API를 다시 부르지 않고, 마지막
+    // 으로 성공한 분석 결과(§IMP-04/05 캐시는 그대로 둠)를 가지고 위험도만
+    // 즉시 재계산해 화면을 다시 그린다. 화면에 스캔 결과가 없으면 아무것도
+    // 하지 않는다(no-op) — 다음에 실제로 스캔할 때 최신 프로필이 쓰인다.
+    function recalcCurrentScanSafety() {
+      if (!state.hasScannedResult) return;
+      if (state.lastScanRenderKind === 'multi' && Array.isArray(state.lastRenderedDishes)) {
+        renderMultiDishScanResult(state.lastRenderedDishes, { silent: true });
+      } else if (state.lastScanRenderKind === 'single' && state.lastRenderedMatchObj) {
+        renderScanResultUI(state.lastRenderedMatchObj, { silent: true });
+      }
+    }
+
+    // [IMP-08] 프로필에 영향을 주는 모든 변경 지점(표준/커스텀 알레르기,
+    // 맵기, 식이 제한, 국적)에서 공통으로 호출한다 — 화면마다 제각각
+    // "TTS만 갱신", "위험도는 안 갱신" 식으로 빠뜨리던 문제(§Package 3 §7
+    // "중복 상태, 누락된 이벤트 핸들러")를 한 곳에서 막는다. 전부 순수
+    // 파생 상태 재계산 + 다시 그리기이며 네트워크 호출은 전혀 하지 않는다.
+    function onProfileChanged() {
+      updateTtsDraft();
+      recalcCurrentScanSafety();
+      updateStaffQuestionPanel();
+      if (!document.getElementById('map-reviews-section').classList.contains('hidden')) {
+        renderReviewsList();
+      }
     }
 
     // [IMP-05] 암호학적 해시가 아니다(캐시 키로만 쓰임 — 보안 목적 아님).
@@ -4428,7 +4988,14 @@
       return bannerDesc;
     }
 
-    function renderMultiDishScanResult(dishes) {
+    // [IMP-07] options.silent: 프로필 변경으로 인한 "위험도만 재계산" 호출일
+    // 때 true — 새로운 스캔이 완료된 것처럼 "스캔 완료" 토스트를 또 띄우지
+    // 않는다. dishes 자체는 항상 기록해서(state.lastRenderedDishes), 이후
+    // 프로필이 또 바뀌어도 AI를 다시 부르지 않고 이 값으로 재계산한다.
+    function renderMultiDishScanResult(dishes, options) {
+      const silent = !!(options && options.silent);
+      state.lastRenderedDishes = dishes;
+      state.lastScanRenderKind = 'multi';
       const trans = translations[state.lang];
       // [IMP-03] red(확정된 직접 위험)가 가장 높고, error(안전 점검 시스템
       // 자체 고장 — 아무것도 확인 못 함)가 그 다음, unknown(개별 신호 하나를
@@ -4517,7 +5084,8 @@
       state.currentReviewFoodId = null;
 
       document.getElementById('scan-result-pane').classList.remove('hidden');
-      showToast(translations[state.lang].toastScanDone);
+      updateStaffQuestionPanel();
+      if (!silent) showToast(translations[state.lang].toastScanDone);
     }
 
     // Food Scanner completed math output
@@ -4531,7 +5099,10 @@
     // eatingMethod, culturalNote) from the built-in demo database (used by
     // the "Scan Menu Here" flow tied to a known map location), and paints
     // the single-dish result pane.
-    function renderScanResultUI(matchObj) {
+    function renderScanResultUI(matchObj, options) {
+      const silent = !!(options && options.silent);
+      state.lastRenderedMatchObj = matchObj;
+      state.lastScanRenderKind = 'single';
       // Render vision target items
       const targetGrid = document.getElementById('vision-elements-list');
       targetGrid.innerHTML = '';
@@ -4625,7 +5196,8 @@
 
       // Expose Pane
       document.getElementById('scan-result-pane').classList.remove('hidden');
-      showToast(translations[state.lang].toastScanDone);
+      updateStaffQuestionPanel();
+      if (!silent) showToast(translations[state.lang].toastScanDone);
     }
 
     // Reset simulator lens to capture state
@@ -4649,6 +5221,11 @@
       state.isAnalyzing = false;
       state.inFlightImageHash = null;
       state.lastAnalysis = null; // [IMP-04/05] 사진 자체를 치웠으니 캐시된 분석 결과도 더는 유효하지 않음
+      // [IMP-07/09] 재계산용 캐시 및 직원 질문 패널도 함께 비운다.
+      state.lastRenderedDishes = null;
+      state.lastRenderedMatchObj = null;
+      state.lastScanRenderKind = null;
+      updateStaffQuestionPanel();
     }
 
     // Clear the saved profile and return to the very first onboarding screen.
@@ -4672,6 +5249,12 @@
       state.currentLocIdx = 0;
       state.currentReviewFoodId = null;
       state.currentMapFilter = 'all';
+      // [IMP-07/09] 재계산용 캐시 및 직원 질문 패널 선택 상태도 초기화한다.
+      state.lastRenderedDishes = null;
+      state.lastRenderedMatchObj = null;
+      state.lastScanRenderKind = null;
+      state.staffQuestionType = 'comprehensive';
+      updateStaffQuestionPanel();
 
       document.getElementById('custom-allergy-badges').innerHTML = '';
       const badge = document.getElementById('allergy-badge');
@@ -4878,7 +5461,13 @@
       const container = document.getElementById('reviews-list-container');
       container.innerHTML = '';
 
-      const allReviews = (foodId && REVIEWS_DATABASE[foodId]) ? REVIEWS_DATABASE[foodId] : [];
+      // [IMP-14] 데모 시드 리뷰(REVIEWS_DATABASE, 수정 불가)와 이 기기에
+      // 실제로 저장된 사용자 리뷰(state.userReviews, 수정/삭제 가능)를
+      // 통계/필터링을 위해 합친다 — 하지만 절대 같은 저장소에 쓰지 않고
+      // 렌더링 시점에만 합친다(§5 "데모 리뷰와 실제 사용자 작성 리뷰 구분").
+      const demoReviews = (foodId && REVIEWS_DATABASE[foodId]) ? REVIEWS_DATABASE[foodId] : [];
+      const userReviewsForFood = (foodId && Array.isArray(state.userReviews[foodId])) ? state.userReviews[foodId] : [];
+      const allReviews = demoReviews.concat(userReviewsForFood);
 
       if (allReviews.length === 0) {
         container.innerHTML = `<p class="text-xs text-vintage-olive italic text-center py-4">No reviews yet. Be the first to share your experience!</p>`;
@@ -4938,26 +5527,43 @@
         return;
       }
 
+      const trans = translations[state.lang];
       listedReviews.slice().reverse().forEach(review => {
         const card = document.createElement('div');
         card.className = "bg-white p-3.5 rounded-xl vintage-border space-y-1.5";
         const stars = '⭐'.repeat(review.rating) + '<span class="opacity-20">' + '⭐'.repeat(5 - review.rating) + '</span>';
-        const dietaryTag = review.dietary && review.dietary !== 'none' ? ` • ${review.dietary}` : '';
-        const tagsHtml = (review.tasteTags || []).map(tag => `<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-vintage-beige text-vintage-olive">${tag}</span>`).join('');
+        const dietaryTag = review.dietary && review.dietary !== 'none' ? ` • ${escapeHtml(review.dietary)}` : '';
+        const tagsHtml = (review.tasteTags || []).map(tag => `<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-vintage-beige text-vintage-olive">${escapeHtml(tag)}</span>`).join('');
+        // [IMP-14] review.isUserReview가 true인 항목만 이 기기에 실제로 저장된
+        // 리뷰다 — "다른 사용자와 공유되는 실제 온라인 리뷰"처럼 보이지 않게
+        // 작은 배지로 구분하고, 그 항목만 수정/삭제 버튼을 보여준다(데모
+        // 시드 리뷰는 읽기 전용으로 유지).
+        const yourBadge = review.isUserReview
+          ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-vintage-sage/20 text-vintage-sage">📱 ${escapeHtml(trans.reviewYourBadge)}</span>`
+          : '';
+        const editDeleteHtml = review.isUserReview
+          ? `<div class="flex gap-1">
+              <button type="button" onclick="editReview('${escapeHtml(review.id)}')" class="text-[10px] px-2 py-0.5 rounded-full bg-vintage-dark/5 text-vintage-dark hover:bg-vintage-dark/10">${escapeHtml(trans.reviewEditBtn)}</button>
+              <button type="button" onclick="deleteReview('${escapeHtml(review.id)}')" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 hover:bg-red-100">${escapeHtml(trans.reviewDeleteBtn)}</button>
+            </div>`
+          : '';
+        // [IMP-02 §11] review.user/review.text는 사용자가 작성한 리뷰에서는
+        // 신뢰할 수 없는 입력이다 — innerHTML에 꽂기 전에 전부 escapeHtml.
         card.innerHTML = `
           <div class="flex justify-between items-start">
             <div>
-              <span class="font-bold text-vintage-dark text-sm block">${review.user}</span>
-              <span class="text-[10px] text-vintage-olive">${review.country} • Spice tolerance Lvl ${review.spiceTolerance}${dietaryTag}</span>
+              <span class="font-bold text-vintage-dark text-sm block">${escapeHtml(review.user)} ${yourBadge}</span>
+              <span class="text-[10px] text-vintage-olive">${escapeHtml(review.country)} • Spice tolerance Lvl ${review.spiceTolerance}${dietaryTag}</span>
             </div>
             <span class="text-xs">${stars}</span>
           </div>
-          <p class="text-xs text-vintage-dark leading-relaxed">"${review.text}"</p>
+          <p class="text-xs text-vintage-dark leading-relaxed">"${escapeHtml(review.text)}"</p>
           ${tagsHtml ? `<div class="flex flex-wrap gap-1">${tagsHtml}</div>` : ''}
           <div class="flex items-center justify-between pt-1">
             <span class="text-[10px] font-mono text-vintage-clay">🌶️ Felt: Lvl ${review.spiceFelt}</span>
             <span class="text-[10px] font-bold px-2 py-0.5 rounded ${review.wouldAgain ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}">${review.wouldAgain ? 'Would eat again' : 'Would avoid'}</span>
           </div>
+          ${editDeleteHtml}
         `;
         container.appendChild(card);
       });
@@ -4979,36 +5585,125 @@
       renderReviewsList();
     }
 
-    // Submit a new traveler review (in-memory only, resets on reload)
+    // [IMP-14] 고유 리뷰 id 생성 — 수정/삭제 대상을 식별하는 데만 쓰이고
+    // 보안 목적은 아니다(IMP-05의 hashStringForCache와 같은 성격).
+    function generateReviewId() {
+      return `rev_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    // Submit a new review, or save edits to an existing one(state.editingReviewId).
+    // [IMP-14] 실제 작성 리뷰는 state.userReviews(foodId별 배열)에 저장되고
+    // localStorage로 영속화된다 — REVIEWS_DATABASE(데모 시드)는 건드리지 않는다.
     function submitReview(event) {
       event.preventDefault();
       const foodId = state.currentReviewFoodId;
       if (!foodId) return;
 
-      const rating = parseInt(document.getElementById('review-rating-input').value, 10);
-      const spiceFelt = parseInt(document.getElementById('review-spice-input').value, 10);
-      const text = document.getElementById('review-comment-input').value.trim();
-      if (!text) return;
+      // [§3 "중복 저장 방지"] 폼을 더블클릭하거나 Enter+클릭이 겹쳐도 같은
+      // 리뷰가 두 번 저장되지 않게 막는다(이 앱엔 네트워크 호출이 없으므로
+      // 여기서 막아야 할 건 "같은 동기 처리 중 재진입"뿐이다).
+      if (state.isSubmittingReview) return;
+      state.isSubmittingReview = true;
 
-      if (!REVIEWS_DATABASE[foodId]) {
-        REVIEWS_DATABASE[foodId] = [];
+      try {
+        const rating = parseInt(document.getElementById('review-rating-input').value, 10);
+        const spiceFelt = parseInt(document.getElementById('review-spice-input').value, 10);
+        const text = document.getElementById('review-comment-input').value.trim();
+        if (!text) return;
+
+        if (!Array.isArray(state.userReviews[foodId])) state.userReviews[foodId] = [];
+
+        if (state.editingReviewId) {
+          const existing = state.userReviews[foodId].find(r => r.id === state.editingReviewId);
+          if (existing) {
+            existing.rating = rating;
+            existing.spiceFelt = spiceFelt;
+            existing.text = text;
+            existing.wouldAgain = rating >= 3;
+            existing.country = getUserCountry();
+            existing.spiceTolerance = state.selectedSpicy + 1;
+            existing.dietary = state.dietary;
+            existing.editedAt = Date.now();
+          }
+          state.editingReviewId = null;
+          saveUserReviewsToStorage();
+          resetReviewFormToAddMode();
+          renderReviewsList();
+          showToast(translations[state.lang].reviewUpdatedToast);
+          return;
+        }
+
+        state.userReviews[foodId].push({
+          id: generateReviewId(),
+          isUserReview: true, // [§5] 데모 시드 리뷰와 구분 — "이 기기에 저장된" 리뷰임을 표시
+          user: "You",
+          country: getUserCountry(),
+          spiceTolerance: state.selectedSpicy + 1,
+          dietary: state.dietary,
+          tasteTags: [],
+          rating: rating,
+          spiceFelt: spiceFelt,
+          text: text,
+          wouldAgain: rating >= 3,
+          createdAt: Date.now(),
+        });
+
+        saveUserReviewsToStorage();
+        document.getElementById('review-comment-input').value = '';
+        renderReviewsList();
+        showToast(translations[state.lang].reviewAddedToast);
+      } finally {
+        state.isSubmittingReview = false;
       }
+    }
 
-      REVIEWS_DATABASE[foodId].push({
-        user: "You",
-        country: getUserCountry(),
-        spiceTolerance: state.selectedSpicy + 1,
-        dietary: state.dietary,
-        tasteTags: [],
-        rating: rating,
-        spiceFelt: spiceFelt,
-        text: text,
-        wouldAgain: rating >= 3
-      });
+    // Populate the form with an existing review's values so the user can edit it.
+    function editReview(reviewId) {
+      const foodId = state.currentReviewFoodId;
+      const list = (foodId && state.userReviews[foodId]) || [];
+      const review = list.find(r => r.id === reviewId);
+      if (!review) return;
 
+      state.editingReviewId = reviewId;
+      document.getElementById('review-rating-input').value = String(review.rating);
+      document.getElementById('review-spice-input').value = String(review.spiceFelt);
+      document.getElementById('review-comment-input').value = review.text;
+
+      const submitBtn = document.getElementById('btn-submit-review');
+      if (submitBtn) submitBtn.innerText = translations[state.lang].reviewUpdateBtn;
+      const cancelBtn = document.getElementById('btn-cancel-edit-review');
+      if (cancelBtn) cancelBtn.classList.remove('hidden');
+    }
+
+    function cancelEditReview() {
+      state.editingReviewId = null;
+      resetReviewFormToAddMode();
+    }
+
+    function resetReviewFormToAddMode() {
       document.getElementById('review-comment-input').value = '';
+      document.getElementById('review-rating-input').value = '5';
+      document.getElementById('review-spice-input').value = '3';
+      const submitBtn = document.getElementById('btn-submit-review');
+      if (submitBtn) submitBtn.innerText = translations[state.lang].reviewSubmitBtn;
+      const cancelBtn = document.getElementById('btn-cancel-edit-review');
+      if (cancelBtn) cancelBtn.classList.add('hidden');
+    }
+
+    function deleteReview(reviewId) {
+      const foodId = state.currentReviewFoodId;
+      if (!foodId || !Array.isArray(state.userReviews[foodId])) return;
+      const trans = translations[state.lang];
+      if (!window.confirm(trans.reviewDeleteConfirm)) return;
+
+      state.userReviews[foodId] = state.userReviews[foodId].filter(r => r.id !== reviewId);
+      if (state.editingReviewId === reviewId) {
+        state.editingReviewId = null;
+        resetReviewFormToAddMode();
+      }
+      saveUserReviewsToStorage();
       renderReviewsList();
-      showToast("Thanks for sharing your review!");
+      showToast(trans.reviewDeletedToast);
     }
   </script>
 </body>
