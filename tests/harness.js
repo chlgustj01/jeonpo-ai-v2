@@ -119,6 +119,11 @@ function loadApp(htmlPath, options = {}) {
     SpeechSynthesisUtterance: function SpeechSynthesisUtterance(t) {
       this.text = t;
     },
+    // [IMP-06] analyzeMenuPhotoWithAI/translateAndRenderDishes가 요청 취소에
+    // 쓴다 — Node 전역의 실제 AbortController/AbortSignal을 그대로 노출한다
+    // (별도 스텁을 만들 필요 없이 표준 동작 그대로 쓸 수 있음, Node 15+).
+    AbortController,
+    AbortSignal,
   };
   sandbox.globalThis = sandbox;
 

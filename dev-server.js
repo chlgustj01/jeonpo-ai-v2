@@ -1,8 +1,9 @@
 // Zero-dependency local dev server for testing this project without the
 // Vercel CLI (which requires an account login to run `vercel dev`).
 //
-// Serves index.html as a static file and routes POST /api/analyze-menu to
-// the same serverless function used in production, so the whole app can be
+// Serves index.html as a static file and routes any POST /api/<name> to the
+// matching ./api/<name>.js serverless function used in production (e.g.
+// /api/analyze-menu, /api/translate-dish), so the whole app can be
 // exercised locally exactly as it behaves on Vercel.
 //
 // Usage:
@@ -27,11 +28,32 @@ if (fs.existsSync(envPath)) {
   });
 }
 
-const analyzeMenuHandler = require('./api/analyze-menu.js');
+// [IMP-04] 번역을 analyze-menu와 분리된 별도 엔드포인트(api/translate-dish.js)로
+// 만들면서, 이 더미 서버도 "/api/analyze-menu 하나만 안다"는 하드코딩을
+// "api/ 폴더 안에 실제로 존재하는 .js 파일이면 그 이름으로 라우팅한다"로
+// 일반화했다 — 새 엔드포인트를 추가할 때마다 이 파일을 또 고치지 않아도 된다.
+// 보안: req.url에서 가져온 이름은 영문/숫자/하이픈만 허용해 경로 탈출을 막는다.
+const API_HANDLERS = {};
+function loadApiHandler(name) {
+  if (!/^[a-zA-Z0-9-]+$/.test(name)) return null;
+  if (API_HANDLERS[name]) return API_HANDLERS[name];
+  const handlerPath = path.join(__dirname, 'api', `${name}.js`);
+  if (!fs.existsSync(handlerPath)) return null;
+  API_HANDLERS[name] = require(handlerPath);
+  return API_HANDLERS[name];
+}
+
 const PORT = process.env.PORT || 3000;
 
 const server = http.createServer(async (req, res) => {
-  if (req.method === 'POST' && req.url === '/api/analyze-menu') {
+  const apiMatch = req.method === 'POST' && req.url.match(/^\/api\/([a-zA-Z0-9-]+)$/);
+  if (apiMatch) {
+    const handler = loadApiHandler(apiMatch[1]);
+    if (!handler) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unknown API endpoint' }));
+      return;
+    }
     let body = '';
     req.on('data', chunk => { body += chunk; });
     req.on('end', async () => {
@@ -48,7 +70,7 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify(obj));
       };
       try {
-        await analyzeMenuHandler(req, res);
+        await handler(req, res);
       } catch (err) {
         console.error('Handler error:', err);
         res.statusCode = 500;

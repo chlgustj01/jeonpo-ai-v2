@@ -301,6 +301,10 @@ function validateAndNormalizeDish(rawDish, allowedIdSet) {
     foodId: slugifyFoodNameForSchema(nameInfo.nameEn || nameInfo.nameKo),
     name: displayName,
     nameKo: nameKo,
+    // [IMP-04] 순수 영어 이름 — `name`은 괄호 안에 한글까지 섞인 "화면 표시용"
+    // 문자열(예: "Bibimbap (비빔밥)")이라 번역 요청에 그대로 보내면 어색한
+    // 결과가 나온다. 번역기에 보낼 땐 이 필드를 쓴다(index.html 참고).
+    nameEn: nameInfo.nameEn || '',
     ingredients: ingredientsResult.value,
     allergens: allergensResult.value,
     allergensUnknownIds: allergensResult.unknownIds,
@@ -419,8 +423,84 @@ function isValidDishResponseEnvelope(obj) {
   });
 }
 
+// ------------------------------------------------------------------
+// [IMP-04] 번역 응답 검증/정규화. api/analyze-menu.js가 이제 언어와
+// 무관한 영어 "정준(canonical)" 필드만 반환하고, api/translate-dish.js가
+// 그 필드들을 화면 언어로 번역한 결과만 돌려준다 — 이 둘은 완전히 분리된
+// 응답 모양이라 dishes[] 전체를 다시 정규화하는 validateAndNormalizeDish를
+// 그대로 쓸 수 없다. 대신 같은 1차 검증 도구(normalizeStringField 등)를
+// 재사용해 중복 규칙을 만들지 않는다.
+// ------------------------------------------------------------------
+var TRANSLATION_SCHEMA_VERSION = '1.0.0';
+
+function validateAndNormalizeTranslationResponse(rawData, expectedFoodIds) {
+  var validationIssues = [];
+  var translationsByFoodId = {};
+  var expectedSet = new Set(expectedFoodIds || []);
+
+  if (!rawData || typeof rawData !== 'object' || !Array.isArray(rawData.translations)) {
+    return {
+      translationSchemaVersion: TRANSLATION_SCHEMA_VERSION,
+      translationsByFoodId: translationsByFoodId,
+      validationIssues: [{ field: 'translations', issue: 'missing_or_not_array', raw: rawData && rawData.translations }],
+    };
+  }
+
+  rawData.translations.forEach(function (entry, index) {
+    if (!entry || typeof entry !== 'object' || typeof entry.foodId !== 'string') {
+      validationIssues.push({ field: 'translations[' + index + ']', issue: 'invalid_entry', raw: entry });
+      return;
+    }
+    if (!expectedSet.has(entry.foodId)) {
+      validationIssues.push({ field: 'translations[' + index + ']', issue: 'unknown_food_id', raw: entry.foodId });
+      return;
+    }
+    if (translationsByFoodId[entry.foodId]) {
+      validationIssues.push({ field: 'translations[' + index + ']', issue: 'duplicate_food_id', raw: entry.foodId });
+      return;
+    }
+
+    var nameResult = normalizeStringField(entry.translatedName, { maxLength: LIMITS.MAX_NAME_LENGTH });
+    var ingredientsResult = normalizeStringField(entry.ingredients, { maxLength: LIMITS.MAX_INGREDIENTS_LENGTH });
+    var eatingMethodResult = normalizeStringArrayField(entry.eatingMethod, {
+      maxItems: LIMITS.MAX_EATING_METHOD_ITEMS,
+      maxItemLength: LIMITS.MAX_EATING_METHOD_ITEM_LENGTH,
+    });
+    var descriptionResult = normalizeStringField(entry.description, { maxLength: LIMITS.MAX_DESCRIPTION_LENGTH });
+    var culturalNoteResult = normalizeStringField(entry.culturalNote, { maxLength: LIMITS.MAX_CULTURAL_NOTE_LENGTH });
+
+    translationsByFoodId[entry.foodId] = {
+      translatedName: nameResult.value,
+      ingredients: ingredientsResult.value,
+      eatingMethod: eatingMethodResult.value,
+      description: descriptionResult.value,
+      culturalNote: culturalNoteResult.value,
+      fieldStatus: {
+        translatedName: nameResult.status,
+        ingredients: ingredientsResult.status,
+        eatingMethod: eatingMethodResult.status,
+        description: descriptionResult.status,
+        culturalNote: culturalNoteResult.status,
+      },
+    };
+  });
+
+  expectedSet.forEach(function (foodId) {
+    if (!translationsByFoodId[foodId]) {
+      validationIssues.push({ field: 'translations', issue: 'missing_translation_for_food_id', raw: foodId });
+    }
+  });
+
+  return {
+    translationSchemaVersion: TRANSLATION_SCHEMA_VERSION,
+    translationsByFoodId: translationsByFoodId,
+    validationIssues: validationIssues,
+  };
+}
+
 var exportsObject = {
   SCHEMA_VERSION: SCHEMA_VERSION,
+  TRANSLATION_SCHEMA_VERSION: TRANSLATION_SCHEMA_VERSION,
   FIELD_STATUS: FIELD_STATUS,
   SPICY_VALIDATION_STATUS: SPICY_VALIDATION_STATUS,
   LIMITS: LIMITS,
@@ -431,6 +511,7 @@ var exportsObject = {
   validateAndNormalizeDish: validateAndNormalizeDish,
   validateAndNormalizeDishesResponse: validateAndNormalizeDishesResponse,
   isValidDishResponseEnvelope: isValidDishResponseEnvelope,
+  validateAndNormalizeTranslationResponse: validateAndNormalizeTranslationResponse,
 };
 
 // [IMP-11과 동일한 UMD 패턴] Node(require)와 브라우저(전역 <script>) 양쪽 지원.
