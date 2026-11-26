@@ -11,6 +11,8 @@ import { formatTemplate } from '../../i18n';
 import { SafetyBanner } from './SafetyBanner';
 import { DishDetail } from './DishDetail';
 import { RiskBadge } from './RiskBadge';
+import { PriceToolbar, PriceInline } from './PriceDisplay';
+import { hasAnyPrintedPrice } from '../../lib/money';
 import type { Dish } from '../../types';
 
 // [UX-IMPROVEMENT P0/P1] Result information order (docs/UX-AUDIT.md U1/U2/U6/U7):
@@ -109,6 +111,9 @@ export function DishResultList({
 
       <SafetyBanner result={overall} sourceNoteKey={source === 'ai_scan' ? 'sourceAiScanNote' : 'sourceDemoNote'} summary={summary} />
 
+      {/* [PRICE] One currency control for all dishes; shown only when the menu actually shows prices. */}
+      {hasAnyPrintedPrice(dishes.map((d) => d.price)) && <PriceToolbar />}
+
       {ranked.length > 1 && (
         <section aria-labelledby="dish-list-title" className="space-y-1.5">
           <h3 id="dish-list-title" className="text-xs font-bold text-vintage-olive uppercase">
@@ -180,12 +185,13 @@ function DishRow({
       <span className="flex-1 min-w-0">
         <span className="block text-sm font-semibold text-vintage-dark break-words">{ranked.dish.name}</span>
         <span className="block text-xs text-vintage-olive break-words">{reasons[0]?.text}</span>
+        {hasKbAdvisory && (
+          <span className="inline-block mt-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+            ⚠️ {t('kbAdvisoryChip')}
+          </span>
+        )}
       </span>
-      {hasKbAdvisory && (
-        <span className="shrink-0 self-center text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
-          ⚠️ {t('kbAdvisoryChip')}
-        </span>
-      )}
+      <PriceInline price={ranked.dish.price} />
     </button>
   );
 }

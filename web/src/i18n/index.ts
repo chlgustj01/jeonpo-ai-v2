@@ -2,6 +2,7 @@ import { translations } from './translations.generated';
 import { reviewStatsExtra } from './reviewStatsExtra';
 import { package5Extra, package5Overrides } from './package5Extra';
 import { uxExtra, uxOverrides } from './uxExtra';
+import { priceExtra } from './priceExtra';
 import type { Lang } from '../types';
 
 export type { Lang } from '../types';
@@ -15,6 +16,7 @@ export function translate(lang: Lang, key: string): string {
   const extra = reviewStatsExtra[lang] || reviewStatsExtra.en;
   const uxo = uxOverrides[lang] || uxOverrides.en;
   const ux = uxExtra[lang] || uxExtra.en;
+  const px = priceExtra[lang] || priceExtra.en;
   const p5o = package5Overrides[lang] || package5Overrides.en;
   const p5 = package5Extra[lang] || package5Extra.en;
   return (
@@ -24,7 +26,9 @@ export function translate(lang: Lang, key: string): string {
     extra[key] ??
     p5[key] ??
     ux[key] ??
+    px[key] ??
     uxExtra.en[key] ??
+    priceExtra.en[key] ??
     package5Overrides.en[key] ??
     (translations.en as Record<string, string>)[key] ??
     reviewStatsExtra.en[key] ??

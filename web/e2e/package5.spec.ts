@@ -196,6 +196,9 @@ test('keyboard: skip link is the first Tab stop and the scan controls are reacha
   await expect(page.getByText('Skip to content')).toBeFocused();
 
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  // A tap in mobile emulation does not reliably move keyboard focus, so start
+  // the keyboard walk from the nav button explicitly.
+  await page.getByRole('button', { name: 'Menu', exact: true }).focus();
   // From the bottom nav, Shift+Tab walks back into the scanner controls.
   let reached = false;
   for (let i = 0; i < 8 && !reached; i++) {

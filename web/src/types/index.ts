@@ -55,10 +55,28 @@ export interface Dish {
   // [Package 5] 'printed' = read from text in the photo; 'inferred' = the
   // model's guess from the dish name. Absent on demo data.
   ingredientSource?: 'printed' | 'inferred';
+  // [PRICE] Printed menu price (shared/dish-schema.js normalizeMenuPrice).
+  // Absent on demo data and on analyses made before schema 1.1.0.
+  price?: DishPrice;
   // [Package 5] English ingredients from analysis, set when `ingredients`
   // holds a translation. Used only for the knowledge-DB lookup.
   canonicalIngredients?: string;
 }
+
+// [PRICE] See shared/dish-schema.js normalizeMenuPrice for the rules.
+export type PriceCurrency = 'KRW' | 'USD' | 'JPY' | 'CNY' | 'EUR';
+export interface DishPrice {
+  status: 'exact' | 'range' | 'ambiguous' | 'not_shown' | 'unknown';
+  amount: number | null;
+  min: number | null;
+  max: number | null;
+  currency: PriceCurrency | null;
+  text: string;
+  source: 'menu_text' | null;
+}
+
+// [PRICE] Currencies the exchange feature supports (open.er-api.com, KRW base).
+export type DisplayCurrency = 'USD' | 'JPY' | 'CNY' | 'EUR' | 'VND';
 
 // [Package 5] How much of the photographed menu this result covers.
 export interface AnalysisCoverage {

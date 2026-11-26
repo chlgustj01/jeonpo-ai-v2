@@ -92,7 +92,60 @@ var LIMITS = {
   MAX_DISHES: 10, // 프롬프트 규칙("1~10개 반환")과 동일한 상한
 };
 
-var SCHEMA_VERSION = '1.0.0';
+// [PRICE] 1.1.0 = 1.0.0 + optional per-dish `price`. Purely additive, so
+// clients accept both (an older cached/stored 1.0.0 response has no price
+// and must keep working — it is shown as "price unknown", never as 0).
+var SCHEMA_VERSION = '1.1.0';
+var COMPATIBLE_SCHEMA_VERSIONS = ['1.0.0', '1.1.0'];
+
+// [PRICE] Menu price as printed next to a dish. Only what the photo shows:
+//   exact      — one amount (amount)
+//   range      — e.g. "9,000~11,000" or several sizes (min, max)
+//   ambiguous  — a price-like text that cannot be read as a number or
+//                cannot be tied to this dish with confidence ("시가", blurred)
+//   not_shown  — no price printed for this dish (e.g. a plain dish photo)
+//   unknown    — the model did not report a price at all (older prompt)
+// The amount is never estimated; anything that fails validation degrades
+// to `ambiguous` (if printed text exists) or `not_shown`, never to 0.
+var PRICE_CURRENCIES = ['KRW', 'USD', 'JPY', 'CNY', 'EUR'];
+var MAX_PRICE_AMOUNT = 10000000;
+var MAX_PRICE_TEXT_LENGTH = 40;
+
+function isValidPriceAmount(v) {
+  return typeof v === 'number' && isFinite(v) && v > 0 && v <= MAX_PRICE_AMOUNT;
+}
+
+function emptyPrice(status) {
+  return { status: status, amount: null, min: null, max: null, currency: null, text: '', source: null };
+}
+
+function normalizeMenuPrice(raw) {
+  if (raw === undefined) return emptyPrice('unknown');
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return emptyPrice('not_shown');
+  var text = typeof raw.text === 'string' ? raw.text.trim().slice(0, MAX_PRICE_TEXT_LENGTH) : '';
+  var currency = typeof raw.currency === 'string' ? raw.currency.trim().toUpperCase() : '';
+  if (PRICE_CURRENCIES.indexOf(currency) === -1) currency = '';
+  var status = typeof raw.status === 'string' ? raw.status : '';
+  var asAmbiguous = function () {
+    if (!text) return emptyPrice('not_shown');
+    var p = emptyPrice('ambiguous');
+    p.text = text;
+    p.currency = currency || null;
+    p.source = 'menu_text';
+    return p;
+  };
+
+  if (status === 'exact') {
+    if (!isValidPriceAmount(raw.amount) || !currency) return asAmbiguous();
+    return { status: 'exact', amount: Math.round(raw.amount * 100) / 100, min: null, max: null, currency: currency, text: text, source: 'menu_text' };
+  }
+  if (status === 'range') {
+    if (!isValidPriceAmount(raw.min) || !isValidPriceAmount(raw.max) || !(raw.min < raw.max) || !currency) return asAmbiguous();
+    return { status: 'range', amount: null, min: raw.min, max: raw.max, currency: currency, text: text, source: 'menu_text' };
+  }
+  if (status === 'ambiguous') return asAmbiguous();
+  return emptyPrice('not_shown');
+}
 
 function normalizeStringField(rawValue, opts) {
   var maxLength = opts && opts.maxLength;
@@ -319,6 +372,8 @@ function validateAndNormalizeDish(rawDish, allowedIdSet) {
     culturalNote: culturalNoteResult.value,
     fieldStatus: fieldStatus,
     dishValidationStatus: dishValidationStatus,
+    // [PRICE] Not part of the safety judgment; never changes dishValidationStatus.
+    price: normalizeMenuPrice(rawDish.price),
   };
 
   return { rejected: false, dish: dish };
@@ -408,7 +463,7 @@ function validateAndNormalizeDishesResponse(rawData, allowedAllergenIds) {
 // 것이 아니다.
 function isValidDishResponseEnvelope(obj) {
   if (!obj || typeof obj !== 'object') return false;
-  if (obj.schemaVersion !== SCHEMA_VERSION) return false;
+  if (COMPATIBLE_SCHEMA_VERSIONS.indexOf(obj.schemaVersion) === -1) return false;
   if (!Array.isArray(obj.dishes)) return false;
   var knownStatuses = ['valid', 'partial', 'invalid', 'empty'];
   if (knownStatuses.indexOf(obj.validationStatus) === -1) return false;
@@ -419,6 +474,7 @@ function isValidDishResponseEnvelope(obj) {
     if (!Array.isArray(d.eatingMethod)) return false;
     if (typeof d.ingredients !== 'string' || typeof d.description !== 'string' || typeof d.culturalNote !== 'string') return false;
     if (d.spicy !== null && typeof d.spicy !== 'number') return false;
+    if (d.price !== undefined && (d.price === null || typeof d.price !== 'object')) return false;
     return true;
   });
 }
@@ -500,6 +556,9 @@ function validateAndNormalizeTranslationResponse(rawData, expectedFoodIds) {
 
 var exportsObject = {
   SCHEMA_VERSION: SCHEMA_VERSION,
+  COMPATIBLE_SCHEMA_VERSIONS: COMPATIBLE_SCHEMA_VERSIONS,
+  PRICE_CURRENCIES: PRICE_CURRENCIES,
+  normalizeMenuPrice: normalizeMenuPrice,
   TRANSLATION_SCHEMA_VERSION: TRANSLATION_SCHEMA_VERSION,
   FIELD_STATUS: FIELD_STATUS,
   SPICY_VALIDATION_STATUS: SPICY_VALIDATION_STATUS,

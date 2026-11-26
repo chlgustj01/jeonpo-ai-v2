@@ -8,6 +8,7 @@ import { getSpicyDisplayLabel } from '../../lib/display';
 import { formatTemplate } from '../../i18n';
 import { Card } from '../common/ui';
 import { RiskBadge } from './RiskBadge';
+import { PriceDetail } from './PriceDisplay';
 import { StaffQuestionPanel } from './StaffQuestionPanel';
 import { KnowledgeAdvisories, KnowledgeDetails } from './KnowledgeSection';
 import { reportHasLiteratureTier } from '../../services/knowledgeBase';
@@ -51,6 +52,10 @@ export function DishDetail({ ranked, source, allDishes }: { ranked: RankedDish; 
           <RiskBadge state={result.safetyState} />
         </div>
         <span className="text-xs font-mono text-vintage-clay">{getSpicyDisplayLabel(lang, dish.spicy)}</span>
+        {/* [PRICE] Same price as in the list, same shared currency. */}
+        <div className="mt-1">
+          <PriceDetail price={dish.price} />
+        </div>
       </div>
 
       <ul className="space-y-1" aria-label={t(BADGE_KEY[result.safetyState])}>

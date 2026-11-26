@@ -222,7 +222,7 @@ test('translation shows a "Translating…" status and Japanese UI has no raw "Ma
   await mockAnalyze(page, [dish('Kimchi Stew', '김치찌개', ['soybean'], { ingredients: 'tofu, sesame oil, green onions' })], 'ux-ja');
   await page.unroute('**/api/translate-dish');
   await page.route('**/api/translate-dish', async (r) => {
-    await new Promise((res) => setTimeout(res, 1500));
+    await new Promise((res) => setTimeout(res, 4000)); // long enough to observe the status on slow mobile runs
     await r.fulfill({
       status: 200,
       contentType: 'application/json',

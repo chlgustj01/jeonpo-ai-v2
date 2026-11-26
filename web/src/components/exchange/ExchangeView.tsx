@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useT } from '../../hooks/useT';
-import { useExchangeRates, type Currency } from '../../hooks/useExchangeRates';
+import { useCurrency } from '../../hooks/useCurrency';
 import { Card } from '../common/ui';
-import { formatTemplate } from '../../i18n';
+import { FxStatusLine } from './FxStatusLine';
+import type { DisplayCurrency } from '../../types';
 
-const CURRENCIES: { code: Currency; symbol: string }[] = [
+const CURRENCIES: { code: DisplayCurrency; symbol: string }[] = [
   { code: 'USD', symbol: 'USD ($)' },
   { code: 'JPY', symbol: 'JPY (¥)' },
   { code: 'CNY', symbol: 'CNY (¥)' },
@@ -12,87 +13,49 @@ const CURRENCIES: { code: Currency; symbol: string }[] = [
   { code: 'VND', symbol: 'VND (₫)' },
 ];
 
-const LOCALE_MAP: Record<string, string> = { en: 'en-US', ja: 'ja-JP', zh: 'zh-CN', vi: 'vi-VN', es: 'es-ES', ko: 'ko-KR' };
+// How many units each reference line shows (100 JPY, 1,000 VND, else 1).
+const LINE_UNITS: Record<DisplayCurrency, number> = { USD: 1, JPY: 100, CNY: 1, EUR: 1, VND: 1000 };
+
+const round2 = (v: number) => Math.round(v * 100) / 100;
 
 // Ports fetchLiveExchangeRates()/setCurrency()/calculateExchange() (§Exchange
-// tab, kept per §6 "지도, 스캔, 직원 질문, 환율 기능을 누락하지 않는다").
+// tab). [PRICE] Now reads the shared exchange state + the shared display
+// currency (useCurrency) — the currency picked here is the one menu prices
+// are converted to, and vice versa. All rates are "KRW per ONE unit".
 export function ExchangeView() {
-  const { t, lang } = useT();
-  const { index, rateAsOfDate, status } = useExchangeRates();
-  const [target, setTarget] = useState<Currency>('USD');
+  const { t } = useT();
+  const { currency: target, setCurrency, krwPerUnit } = useCurrency();
   const [foreignValue, setForeignValue] = useState('');
   const [krwValue, setKrwValue] = useState('');
 
-  const rate = index[target];
+  const rate = krwPerUnit[target];
 
   const onForeignChange = (v: string) => {
     setForeignValue(v);
-    const val = parseFloat(v) || 0;
-    let result = 0;
-    if (target === 'JPY') result = Math.round(val * rate);
-    else if (target === 'VND') result = Math.round((val / 1000) * rate);
-    else result = Math.round(val * rate);
-    setKrwValue(String(result));
+    setKrwValue(v === '' ? '' : String(Math.round((parseFloat(v) || 0) * rate)));
   };
 
   const onKrwChange = (v: string) => {
     setKrwValue(v);
-    const val = parseFloat(v) || 0;
-    let result = 0;
-    if (target === 'JPY') result = Math.round((val / rate) * 100) / 100;
-    else if (target === 'VND') result = Math.round(((val * 1000) / rate) * 100) / 100;
-    else result = Math.round((val / rate) * 100) / 100;
-    setForeignValue(String(result));
+    setForeignValue(v === '' ? '' : String(round2((parseFloat(v) || 0) / rate)));
   };
 
-  const onTargetChange = (c: Currency) => {
-    setTarget(c);
-    const nextRate = index[c];
+  const onTargetChange = (c: DisplayCurrency) => {
+    setCurrency(c);
     const val = parseFloat(foreignValue) || 0;
-    let result = 0;
-    if (c === 'JPY') result = Math.round(val * nextRate);
-    else if (c === 'VND') result = Math.round((val / 1000) * nextRate);
-    else result = Math.round(val * nextRate);
-    setKrwValue(foreignValue ? String(result) : '');
+    setKrwValue(foreignValue ? String(Math.round(val * krwPerUnit[c])) : '');
   };
 
-  const currentRateLine = (() => {
-    if (target === 'JPY') return `100 JPY = ${Math.round(rate * 100).toLocaleString()} KRW`;
-    if (target === 'VND') return `1,000 VND = ${Math.round(rate).toLocaleString()} KRW`;
-    return `1 ${target} = ${Math.round(rate).toLocaleString()} KRW`;
-  })();
-
-  // [UX-IMPROVEMENT §6] Live vs reference rates are labeled differently; the
-  // hardcoded fallback is never shown under a "live/as of" label.
-  const rateStatusText =
-    status === 'live'
-      ? rateAsOfDate
-        ? formatTemplate(t('rateLive'), {
-            time: new Intl.DateTimeFormat(LOCALE_MAP[lang] || 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(rateAsOfDate),
-          })
-        : t('rateLive').replace(/\s*\{time\}\s*/, ' ')
-      : status === 'fallback'
-        ? t('rateFallback')
-        : t('rateLoading');
-  const badgeClass =
-    status === 'live' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : status === 'fallback' ? 'bg-amber-50 text-amber-900 border-amber-300' : 'bg-slate-100 text-slate-800 border-slate-300';
+  const line = (c: DisplayCurrency) => `${LINE_UNITS[c].toLocaleString()} ${c} = ${Math.round(krwPerUnit[c] * LINE_UNITS[c]).toLocaleString()} KRW`;
 
   return (
     <section className="p-4 space-y-4" aria-label={t('exchTitle')}>
-      <div className="flex justify-between items-start gap-2">
+      <div className="space-y-1">
         <h2 className="font-serif text-2xl font-bold text-vintage-dark">{t('exchTitle')}</h2>
-        <span className={`text-[11px] px-2 py-0.5 rounded font-bold border text-right ${badgeClass}`} role="status">{rateStatusText}</span>
+        <FxStatusLine />
       </div>
 
       <Card className="space-y-3">
-        <div className="flex items-center gap-2 text-xs">
-          <span className={`w-2 h-2 rounded-full ${status === 'live' ? 'bg-emerald-500' : 'bg-amber-500'}`} aria-hidden="true" />
-          {t('naverTitle')}
-        </div>
-        <p className="text-[11px] text-vintage-olive">
-          {t('exchSource')} {t('rateSourceName')}
-        </p>
-
         <div className="flex gap-1.5 flex-wrap" role="group" aria-label={t('targetCur')}>
           {CURRENCIES.map((c) => (
             <button
@@ -109,11 +72,11 @@ export function ExchangeView() {
           ))}
         </div>
 
-        <p className="text-center font-serif text-lg font-bold text-vintage-dark">{currentRateLine}</p>
+        <p className="text-center font-serif text-lg font-bold text-vintage-dark">{line(target)}</p>
 
         <div className="grid grid-cols-2 gap-3 items-end">
           <div>
-            <label htmlFor="foreign-input" className="block text-[10px] text-vintage-olive uppercase font-bold mb-1">
+            <label htmlFor="foreign-input" className="block text-[11px] text-vintage-olive uppercase font-bold mb-1">
               {t('foreignAmt')}
             </label>
             <input
@@ -126,7 +89,7 @@ export function ExchangeView() {
             />
           </div>
           <div>
-            <label htmlFor="krw-input" className="block text-[10px] text-vintage-olive uppercase font-bold mb-1">
+            <label htmlFor="krw-input" className="block text-[11px] text-vintage-olive uppercase font-bold mb-1">
               {t('krwAmt')}
             </label>
             <input
@@ -141,12 +104,10 @@ export function ExchangeView() {
         </div>
 
         <div className="pt-2 border-t border-vintage-dark/10 text-xs text-vintage-olive space-y-0.5">
-          <span className="block text-[10px] font-bold uppercase">{t('baseIndexes')}</span>
-          <div>1 USD = {Math.round(index.USD).toLocaleString()} KRW</div>
-          <div>100 JPY = {Math.round(index.JPY * 100).toLocaleString()} KRW</div>
-          <div>1 CNY = {Math.round(index.CNY).toLocaleString()} KRW</div>
-          <div>1 EUR = {Math.round(index.EUR).toLocaleString()} KRW</div>
-          <div>1,000 VND = {Math.round(index.VND).toLocaleString()} KRW</div>
+          <span className="block text-[11px] font-bold uppercase">{t('baseIndexes')}</span>
+          {CURRENCIES.map((c) => (
+            <div key={c.code}>{line(c.code)}</div>
+          ))}
         </div>
       </Card>
     </section>

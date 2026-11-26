@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware';
-import type { Dietary, Lang, CustomAllergyEntry } from '../types';
+import type { Dietary, Lang, CustomAllergyEntry, DisplayCurrency } from '../types';
 import { migrateLegacyAllergyIds } from '../lib/allergens';
 
 // Reuses the EXACT same localStorage key + schema the vanilla app used
@@ -9,6 +9,7 @@ import { migrateLegacyAllergyIds } from '../lib/allergens';
 // no re-onboarding, no silent reset (§5 of the Package 4 request).
 const PROFILE_STORAGE_KEY = 'fitbridge_profile_v1';
 const PROFILE_SCHEMA_VERSION = 2;
+const PREFERRED_CURRENCIES: DisplayCurrency[] = ['USD', 'JPY', 'CNY', 'EUR', 'VND'];
 
 // Declared before useProfileStore (not after) — zustand's persist
 // middleware can invoke onRehydrateStorage synchronously while
@@ -32,6 +33,8 @@ interface PersistedShape {
   onboardingComplete: boolean;
   // [UX-IMPROVEMENT] Optional; absent in older/vanilla-saved profiles (= not stated).
   noAllergiesConfirmed?: boolean;
+  // [PRICE] Optional; null/absent = not chosen yet (suggested from nationality).
+  preferredCurrency?: DisplayCurrency | null;
 }
 
 // [UX-IMPROVEMENT] 'set' = at least one allergy registered, 'none' = the user
@@ -51,6 +54,7 @@ export interface ProfileState {
   customAllergies: CustomAllergyEntry[];
   onboardingComplete: boolean;
   noAllergiesConfirmed: boolean;
+  preferredCurrency: DisplayCurrency | null;
 
   setLang: (lang: Lang) => void;
   setDietary: (d: Dietary) => void;
@@ -63,6 +67,7 @@ export interface ProfileState {
   removeCustomAllergy: (original: string) => void;
   completeOnboarding: () => void;
   setNoAllergiesConfirmed: (v: boolean) => void;
+  setPreferredCurrency: (c: DisplayCurrency) => void;
   resetProfile: () => void;
 }
 
@@ -90,6 +95,7 @@ const storage: PersistStorage<ProfileState> = {
         customAllergies: data.customAllergies || [],
         onboardingComplete: !!data.onboardingComplete,
         noAllergiesConfirmed: !!data.noAllergiesConfirmed,
+        preferredCurrency: PREFERRED_CURRENCIES.includes(data.preferredCurrency as DisplayCurrency) ? (data.preferredCurrency as DisplayCurrency) : null,
       } as ProfileState;
       return { state, version: PROFILE_SCHEMA_VERSION } as unknown as StorageValue<ProfileState>;
     } catch (err) {
@@ -110,6 +116,7 @@ const storage: PersistStorage<ProfileState> = {
         customAllergies: s.customAllergies,
         onboardingComplete: s.onboardingComplete,
         noAllergiesConfirmed: s.noAllergiesConfirmed,
+        preferredCurrency: s.preferredCurrency,
       };
       localStorage.setItem(name, JSON.stringify(payload));
     } catch (err) {
@@ -133,6 +140,7 @@ export const useProfileStore = create<ProfileState>()(
       customAllergies: [],
       onboardingComplete: false,
       noAllergiesConfirmed: false,
+      preferredCurrency: null,
 
       setLang: (lang) => set({ lang }),
       setDietary: (dietary) => set({ dietary }),
@@ -161,6 +169,7 @@ export const useProfileStore = create<ProfileState>()(
       removeCustomAllergy: (original) =>
         set((st) => ({ customAllergies: st.customAllergies.filter((c) => c.original !== original) })),
       completeOnboarding: () => set({ onboardingComplete: true }),
+      setPreferredCurrency: (preferredCurrency) => set({ preferredCurrency }),
       setNoAllergiesConfirmed: (v) => set(v ? { noAllergiesConfirmed: true, selectedAllergies: new Set(), customAllergies: [] } : { noAllergiesConfirmed: false }),
       resetProfile: () =>
         set({

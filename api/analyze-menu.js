@@ -65,7 +65,8 @@ const GEMINI_MODEL = gemini.resolveGeminiModel(process.env.GEMINI_MODEL);
 // 새 계약을 모르는 채로 재사용되지 않게 한다("분석 모델, 프롬프트 버전,
 // 응답 스키마 버전을 캐시 키에 고려" 요구사항).
 // [PKG5-01] 2.1.0: menuItemCount + ingredientSource, shorter per-dish text.
-const ANALYSIS_PROMPT_VERSION = '2.1.0';
+// [PRICE] 2.2.0: per-dish printed price (never estimated).
+const ANALYSIS_PROMPT_VERSION = '2.2.0';
 
 // [PKG5-01] Output budget. The reproduced failure used 2044 thinking tokens
 // + 1013 answer tokens and hit the 3072 cap after ~3 of 9 dishes. A 10-dish
@@ -123,7 +124,8 @@ Respond with ONLY strict JSON (no markdown fences, no commentary) matching exact
       "spicy": 0,
       "eatingMethod": ["2 short steps for how to eat this dish, written in English"],
       "description": "1 short sentence describing what this dish/product is, written in English",
-      "culturalNote": "1 short sentence with a cultural tip, written in English (empty string if nothing noteworthy)"
+      "culturalNote": "1 short sentence with a cultural tip, written in English (empty string if nothing noteworthy)",
+      "price": { "status": "exact or range or ambiguous or not_shown", "text": "the price exactly as printed for THIS item, e.g. 9,000원", "amount": 9000, "min": null, "max": null, "currency": "KRW" }
     }
   ]
 }
@@ -133,6 +135,11 @@ Rules:
 - Return between 1 and 10 dish entries — as many distinct food/drink items as you can clearly read, but never invent items that aren't actually visible in the photo. If there are more than 10, return the first 10 in reading order.
 - "ingredientSource" is "printed" only when the ingredients/allergens come from text actually printed in the photo (an ingredient label or a menu description line). If you only see the dish name and are describing the usual recipe, use "inferred". Most menu boards that list only names are "inferred".
 - Keep every text field short (the whole answer must fit in a limited output budget).
+- "price" is ONLY a price printed in the photo on the same line, row or box as THIS item's name. Never estimate or guess a typical price. If no price is printed for the item (for example a photo of a plated dish, or a label without a price), use {"status": "not_shown"}.
+- Never give one item another item's price. If you cannot tell which item a printed price belongs to, use "ambiguous" and copy the printed text.
+- "amount", "min" and "max" are full numbers in the printed currency (9,000원 -> 9000, KRW). Convert thousand-unit shorthand (e.g. "9.0" or "9" under a 천원 heading) only when it is clearly that; otherwise use "ambiguous".
+- Use "range" with "min" and "max" for a printed range or several sizes/portions (e.g. 소 9,000 / 대 12,000). Use "ambiguous" for text like 시가 (market price) or an unreadable price.
+- "currency" is one of KRW, USD, JPY, CNY, EUR as printed; Korean menus without a symbol are KRW.
 - "spicy" must be an integer from 0 to 3 (0 = none, 1 = mild, 2 = hot, 3 = extreme).
 - Only use allergen ids from the exact list given — never invent new ones.
 - If you genuinely cannot identify any food item at all, return {"dishes": []}.
