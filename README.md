@@ -8,14 +8,15 @@
 
 > 앱의 결과는 **AI 추정**입니다. GREEN은 "프로필과 일치하는 성분을 찾지 못함"이라는 뜻이며, 안전 보장이 아닙니다. 심한 알레르기가 있다면 반드시 직원에게 확인하세요.
 
-![실제 메뉴판 분석 결과](web/screenshots/final-real-menu-desktop.png)
+![음식별 위험도와 선택 음식 상세](web/screenshots/ux-improvement/after-390-E-selected-dish.png)
 
 ## 주요 기능
 
 - **메뉴판·음식 사진 분석:** 사진 1장당 최대 10개 항목. 일부만 분석되면 "약 N개 중 M개"로 안내합니다.
-- **위험도 표시:** RED / ORANGE / GREEN / UNKNOWN / ERROR를 아이콘과 글자로 구분합니다(색상만으로 구분하지 않음). 프로필을 바꾸면 재분석 없이 즉시 반영됩니다.
+- **음식별 위험도:** 메뉴판의 각 음식에 위험 배지(피하기 / 확인 필요 / 불확실 / 일치 없음)와 이유를 표시합니다. 아이콘과 글자로 구분하며 색상만으로 구분하지 않습니다. 위험한 음식이 먼저 나오고, 프로필을 바꾸면 재분석 없이 즉시 반영됩니다.
+- **음식 선택 중심 흐름:** 음식을 고르면 위험 이유, 식재료, 지식 DB 확인, 직원 질문(TTS/복사), 내 식사 기록이 모두 그 음식 기준으로 바뀝니다. 지도에서 고른 식당은 메뉴판 분석과 기록까지 이어집니다.
 - **정보 출처 표시:** AI 추정, 사진 글자에서 읽음, 문헌 기반 식품 지식 DB, 데모 데이터를 각각 따로 표시합니다.
-- **직원 질문 4유형**(재료 / 내 알레르기 / 교차 오염 / 종합): 한국어 문구, 음성(TTS), 복사를 지원합니다.
+- **직원 질문 4유형**(재료 / 내 알레르기 / 교차 오염 / 종합): 선택한 음식 기준이며, 주의 음식 전체를 한 번에 물을 수도 있습니다. 한국어 문구, 음성(TTS), 복사를 지원합니다.
 - **기타:** 리뷰 저장·수정·삭제(기기 내 저장), 지도, 환율 계산기.
 
 ## 로컬 실행
@@ -33,7 +34,7 @@ node dev-server.js
 cd web && npm install && npm run dev
 ```
 
-WSL 네트워크 경로(`\\wsl.localhost\...`)에서는 Vite 파일 감시가 동작하지 않습니다. 소스를 수정한 뒤에는 개발 서버를 다시 시작하세요.
+WSL 네트워크 경로(`\\wsl.localhost\...`)에서 Windows로 실행하면 Vite 파일 감시가 동작하지 않습니다. `web/node_modules`를 WSL에서 설치했다면 TypeScript 7·Vite 8의 네이티브 바이너리가 Linux용이므로, 빌드와 서버는 WSL 셸에서 실행하세요(Playwright는 `node node_modules/@playwright/test/cli.js test`로 어느 쪽에서도 실행할 수 있습니다).
 
 ## 테스트
 
@@ -73,5 +74,7 @@ Gemini 무료 등급에서는 Google이 사진과 응답을 모델 개선에 사
 | [docs/TEST-REPORT.md](docs/TEST-REPORT.md) | 최종 테스트 결과 (Mock / 실제 API 구분) |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Vercel 배포 설정과 공개 배포 전 필수 항목 |
 | [docs/PORTFOLIO.md](docs/PORTFOLIO.md) | 문제 해결 사례와 정량 성과 |
+| [docs/UX-AUDIT.md](docs/UX-AUDIT.md) | 실제 브라우저 기반 UX 감사(개선 전) |
+| [docs/UX-IMPROVEMENT.md](docs/UX-IMPROVEMENT.md) | UX 통합 개선과 같은 조건의 전후 측정 |
 | [docs/devlog/](docs/devlog/) | 과제별 개발 기록 (IMP-01 ~ PACKAGE-05) |
 | [PRD.md](PRD.md), [CLAUDE.md](CLAUDE.md) | 해커톤 팀 요구사항과 합의 |

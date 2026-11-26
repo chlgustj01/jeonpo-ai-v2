@@ -1,4 +1,6 @@
-# 최종 테스트 보고서 (Package 5)
+# 최종 테스트 보고서 (Package 5 + UX 통합 개선)
+
+> **최신 결과는 §7(UX 통합 개선 후 재검증)** 이다. §1~6은 Package 5 시점 기록으로 보존한다.
 
 - 대상: `v2-dev` Package 5 작업본 (기준 `f00936f`)
 - 환경: Windows 11, Node v24.19.0 (WSL 경로를 `Z:`로 매핑), Python `py` 런처, Chromium (Playwright 1.65)
@@ -92,3 +94,26 @@ Playwright는 개발 서버(5173)가 아닌 **프로덕션 번들(`vite preview`
 | `p5-02-menu-coverage.png` | Mock 일부 분석 안내 |
 | `p5-03-menu-preview.png` | 세로 메뉴판 미리보기 (잘림 없음) |
 | `01`~`07-*.png` | Package 4 시나리오 (이번 실행에서 다시 생성) |
+
+## 7. UX 통합 개선 후 재검증 (2026-11-27)
+
+상세는 [docs/UX-IMPROVEMENT.md](UX-IMPROVEMENT.md)에 있다.
+
+- 환경 변경: `web/node_modules`가 WSL(Linux)에서 다시 설치되었다. 그래서 타입 검사, 빌드, 개발 서버, 미리보기 서버는 WSL(Node v26.13.1)에서 실행했다. Playwright는 같은 `node_modules`의 JS CLI(`node node_modules/@playwright/test/cli.js`)를 Windows Node v24로 실행했다.
+- 서버: React 개발 `:5174`(WSL), 프로덕션 미리보기 `:4175`(WSL `vite preview`). 둘 다 WSL `dev-server.js :3000`으로 프록시한다.
+
+| 구분 | 명령 / 대상 | 결과 |
+|---|---|---|
+| 타입 검사 | WSL `npx tsc -b` | 0 errors |
+| 프로덕션 빌드 | WSL `npm run build` | 성공 |
+| Lint | WSL `npx oxlint src` | 0 errors, 경고 3건(기존 파일) |
+| Playwright 전체 (Mock) | `E2E_BASE_URL=http://localhost:4175` (프로덕션 번들) | **60 passed, 2 skipped**(실제 Gemini 스펙) |
+| └ 신규 `e2e/ux-improvement.spec.ts` | 음식별 위험도, 선택 음식 → 질문/TTS/복사, 같은 이름 음식 독립 선택, 고정 직원 질문, 지도 → 실제 업로드 + 식당 유지 + 리뷰 연결, 데모 분리, 새로고침 복원과 뒤로 가기, 복원 시 현재 프로필로 재계산, 번역 중 표시, 일본어 Matched/DB 재료, 환율 참고값 표기, 리뷰 번역과 예시 배지, 알레르기 없음/미입력 구분 | 13 × 2 = 26 passed |
+| JS 회귀 (Mock) | `node tests/*.js` 21개 | 전부 PASS. `imp-11-repro-before`만 exit 1(기존 동일) |
+| Python ETL / Master DB | `py -m unittest …` / `py scripts/validate_food_knowledge.py` | 31/31 OK / PASS |
+| 6개 언어 UI 미번역 탐지 | 앱 i18n 소스의 영어 UI 문자열을 화면에서 탐지(온보딩, 결과+펼침, 지도/리뷰, 환율, 프로필) | en/ja/zh/vi/es/ko 모두 0건, 콘솔 오류 0 |
+| UX 지표 재측정 (Mock 재생) | 감사와 같은 스크립트 조건, 390px | UX-IMPROVEMENT §4 |
+| 실제 Gemini | 개선 후 여정 1회(분석 1 + 번역 1) | 14.2초, 9개 항목, 번역 중 표시 확인, 콘솔 오류 0 |
+| NOT RUN | 실제 TTS 음성 품질, iOS/Android 실기기, 스크린 리더, Vanilla 재감사 | — |
+
+스크린샷: 개선 전 `web/screenshots/ux-audit/`, 개선 후 `web/screenshots/ux-improvement/`. Playwright 기본 스크린샷(`01`~`07`, `p5-*`)은 새 UI로 다시 생성했다.
