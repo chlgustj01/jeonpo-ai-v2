@@ -43,8 +43,20 @@ export function DishResultList({
   return (
     <div className="space-y-3">
       {partialResults && (
-        <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+        <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2">
           {t('toastPartialResults')}
+        </p>
+      )}
+      {/* [Package 5] One notice per list (not per dish) about where the
+          ingredient/allergen info came from. */}
+      {source === 'ai_scan' && dishes.some((d) => d.ingredientSource !== 'printed') && (
+        <p className="text-xs text-vintage-dark bg-vintage-beige/60 border border-vintage-dark/10 rounded-lg p-2">
+          {t('ingredientInferred')}
+        </p>
+      )}
+      {source === 'ai_scan' && dishes.some((d) => d.ingredientSource === 'printed') && (
+        <p className="text-xs text-vintage-dark bg-vintage-beige/60 border border-vintage-dark/10 rounded-lg p-2">
+          {t('ingredientPrinted')}
         </p>
       )}
       <SafetyBanner result={overall} sourceNoteKey={source === 'ai_scan' ? 'sourceAiScanNote' : 'sourceDemoNote'} />
@@ -70,7 +82,16 @@ function DishCard({ dish, source, dishKey }: { dish: Dish; source: 'ai_scan' | '
         <span className="text-[10px] font-mono text-vintage-clay shrink-0">{getSpicyDisplayLabel(lang, dish.spicy)}</span>
       </div>
 
-      {dish.ingredients && <p className="text-[11px] text-vintage-olive leading-relaxed">{dish.ingredients}</p>}
+      {dish.ingredients && (
+        <p className="text-[11px] text-vintage-olive leading-relaxed">
+          {source === 'ai_scan' && (
+            <span className="inline-block mr-1.5 px-1.5 rounded bg-vintage-dark/10 text-vintage-dark text-[10px] font-bold">
+              {t(dish.ingredientSource === 'printed' ? 'chipIngredientPrinted' : 'chipIngredientInferred')}
+            </span>
+          )}
+          {dish.ingredients}
+        </p>
+      )}
 
       <KnowledgeSection report={report} />
 

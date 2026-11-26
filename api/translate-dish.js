@@ -11,8 +11,19 @@ const { validateAndNormalizeTranslationResponse, TRANSLATION_SCHEMA_VERSION } = 
 const { fetchWithRetry } = require('../shared/http-retry.js');
 const { createTtlCache } = require('../shared/server-cache.js');
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const gemini = require('../shared/gemini-client.js');
+
+// [PKG5-01] Same env override as analyze-menu.js (validated id only).
+const GEMINI_MODEL = gemini.resolveGeminiModel(process.env.GEMINI_MODEL);
 const TRANSLATE_PROMPT_VERSION = '1.0.0';
+// [PKG5-01] The old cap (2048) shared its budget with default thinking, the
+// same way that truncated analyze-menu's answer. Plain translation does not
+// need thinking, so turn it off (budget 0 on 2.5 models) and allow room for
+// 10 dishes in CJK languages.
+const TRANSLATE_MAX_OUTPUT_TOKENS = 8192;
+const TRANSLATE_THINKING_BUDGET = 0;
+const ATTEMPT_TIMEOUT_MS = 30000;
+const TOTAL_BUDGET_MS = 40000;
 
 const LANGUAGE_NAMES = {
   en: 'English',
@@ -125,29 +136,33 @@ module.exports = async function handler(req, res) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: 'Server is missing GEMINI_API_KEY. Add it in Vercel > Project Settings > Environment Variables, then redeploy.' });
+    res.status(500).json({ error: 'Server is missing GEMINI_API_KEY. Add it in Vercel > Project Settings > Environment Variables, then redeploy.', code: 'AI_CONFIG', retryable: false });
     return;
   }
 
   const expectedFoodIds = dishes.map((d) => d.foodId);
   const promptText = buildTranslatePrompt(dishes, LANGUAGE_NAMES[lang]);
 
+  const requestBody = {
+    contents: [{ parts: [{ text: promptText }] }],
+    generationConfig: gemini.buildGenerationConfig(GEMINI_MODEL, {
+      maxOutputTokens: TRANSLATE_MAX_OUTPUT_TOKENS,
+      thinkingBudget: TRANSLATE_THINKING_BUDGET,
+    }),
+  };
+  const startedAt = Date.now();
+
+  let response;
   try {
-    const response = await fetchWithRetry(
-      () => fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: promptText }] }],
-            generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 2048 }
-          })
-        }
-      ),
+    response = await fetchWithRetry(
+      () => {
+        const remaining = Math.max(1000, Math.min(ATTEMPT_TIMEOUT_MS, TOTAL_BUDGET_MS - (Date.now() - startedAt)));
+        const { url, init } = gemini.buildGeminiRequest(GEMINI_MODEL, apiKey, requestBody, AbortSignal.timeout(remaining));
+        return fetch(url, init);
+      },
       {
         maxAttempts: 3,
-        maxTotalMs: 15000,
+        maxTotalMs: TOTAL_BUDGET_MS,
         baseDelayMs: 400,
         maxDelayMs: 6000,
         onRetry: (attempt, delayMs, reason) => {
@@ -155,32 +170,37 @@ module.exports = async function handler(req, res) {
         },
       }
     );
+  } catch (err) {
+    const failure = gemini.classifyThrownError(err);
+    gemini.logFailure('translate-dish', failure);
+    gemini.sendFailure(res, failure, 'The translation request failed.');
+    return;
+  }
 
+  try {
     if (!response.ok) {
       const errText = await response.text();
-      console.error('Gemini translate API error:', response.status, errText);
-      res.status(502).json({ error: 'The translation request failed.' });
+      const failure = gemini.classifyHttpFailure(response.status, errText, false);
+      gemini.logFailure('translate-dish', failure);
+      gemini.sendFailure(res, failure, 'The translation request failed.');
       return;
     }
 
     const data = await response.json();
-    const content =
-      data.candidates && data.candidates[0] && data.candidates[0].content &&
-      data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
-      data.candidates[0].content.parts[0].text;
-
-    if (!content) {
-      console.error('Unexpected Gemini translate response shape:', JSON.stringify(data));
-      res.status(502).json({ error: 'No content returned from the translation provider.' });
+    const extracted = gemini.extractCandidateText(data);
+    if (extracted.failure) {
+      gemini.logFailure('translate-dish', extracted.failure, data.usageMetadata);
+      gemini.sendFailure(res, extracted.failure, 'No usable content returned from the translation provider.');
       return;
     }
+    const content = extracted.text;
 
     let parsed;
     try {
       parsed = JSON.parse(content);
     } catch (parseErr) {
-      console.error('Failed to parse translation JSON response:', content);
-      res.status(502).json({ error: 'The translation response was not valid JSON.' });
+      gemini.logFailure('translate-dish', { ...gemini.ERROR_CODES.RESPONSE_INVALID, finishReason: extracted.finishReason }, data.usageMetadata);
+      gemini.sendFailure(res, gemini.ERROR_CODES.RESPONSE_INVALID, 'The translation response was not valid JSON.');
       return;
     }
 
@@ -193,15 +213,15 @@ module.exports = async function handler(req, res) {
     const totallyFailed = Object.keys(validated.translationsByFoodId).length === 0 && expectedFoodIds.length > 0;
     if (totallyFailed) {
       console.error('[IMP-04] 번역 응답이 계약을 완전히 벗어남:', JSON.stringify(validated.validationIssues));
-      res.status(502).json({ error: 'The translation response did not match the expected schema.', validationIssues: validated.validationIssues });
+      gemini.sendFailure(res, gemini.ERROR_CODES.RESPONSE_INVALID, 'The translation response did not match the expected schema.', { validationIssues: validated.validationIssues });
       return;
     }
 
     translationCache.set(cacheKey, validated);
     res.status(200).json(validated);
   } catch (err) {
-    console.error('translate-dish handler error:', err);
-    res.status(500).json({ error: 'Internal server error while translating.' });
+    console.error('translate-dish handler error:', err && err.name, err && err.message);
+    res.status(500).json({ error: 'Internal server error while translating.', code: 'AI_RESPONSE_INVALID', retryable: true });
   }
 }
 

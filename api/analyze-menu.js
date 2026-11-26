@@ -57,12 +57,31 @@ const { validateAndNormalizeDishesResponse, SCHEMA_VERSION: DISH_SCHEMA_VERSION 
 const crypto = require('crypto');
 const { fetchWithRetry } = require('../shared/http-retry.js');
 const { createTtlCache } = require('../shared/server-cache.js');
+const gemini = require('../shared/gemini-client.js');
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+// [PKG5-01] Can be overridden with the GEMINI_MODEL env var (validated id only).
+const GEMINI_MODEL = gemini.resolveGeminiModel(process.env.GEMINI_MODEL);
 // [IMP-05] 캐시 키에 포함해, 프롬프트/모델/스키마를 바꾸면 예전 캐시가
 // 새 계약을 모르는 채로 재사용되지 않게 한다("분석 모델, 프롬프트 버전,
 // 응답 스키마 버전을 캐시 키에 고려" 요구사항).
-const ANALYSIS_PROMPT_VERSION = '2.0.0'; // [IMP-04] 언어 중립 프롬프트로 전환
+// [PKG5-01] 2.1.0: menuItemCount + ingredientSource, shorter per-dish text.
+const ANALYSIS_PROMPT_VERSION = '2.1.0';
+
+// [PKG5-01] Output budget. The reproduced failure used 2044 thinking tokens
+// + 1013 answer tokens and hit the 3072 cap after ~3 of 9 dishes. A 10-dish
+// answer needs roughly 3-4k tokens, so: cap thinking at 1024 and leave
+// 8192 total. Both numbers are re-checked by the real-API check in
+// docs/TEST-REPORT.md.
+const ANALYSIS_MAX_OUTPUT_TOKENS = 8192;
+const ANALYSIS_THINKING_BUDGET = 1024;
+const MAX_DISHES = 10; // same as LIMITS.MAX_DISHES in shared/dish-schema.js and translate-dish's cap
+// [PKG5-08] Vercel rejects request bodies over 4.5MB anyway; reject earlier
+// with a clear code. The client resizes to 1024px JPEG (~100-300KB).
+const MAX_IMAGE_BASE64_CHARS = 4 * 1024 * 1024;
+const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+// One attempt must finish within this; the retry loop has its own total budget.
+const ATTEMPT_TIMEOUT_MS = 45000;
+const TOTAL_BUDGET_MS = 55000;
 
 // [IMP-05] 서버 프로세스 메모리 캐시. 같은 사진(해시 동일)을 다시 분석
 // 요청하면 Gemini를 다시 부르지 않고 캐시된 결과를 그대로 돌려준다. 실패한
@@ -92,23 +111,28 @@ Do NOT treat these as food items at all: restaurant/store names or logos, addres
 
 Respond with ONLY strict JSON (no markdown fences, no commentary) matching exactly this shape:
 {
+  "menuItemCount": 0,
   "dishes": [
     {
       "name_ko": "Korean name in Hangul, e.g. 삼겹살",
       "name_en": "Romanized or English name, e.g. Samgyeopsal",
+      "ingredientSource": "printed or inferred",
       "ingredients": "Comma-separated key ingredients, written in English",
       "allergens": ["zero or more ids from this exact list: ${ALLOWED_ALLERGEN_IDS.join(', ')}"],
       "crossContactAllergens": ["optional ids from the same list, for trace/shared-sauce risk only"],
       "spicy": 0,
-      "eatingMethod": ["2 to 3 short steps for how to eat this dish, written in English"],
-      "description": "1-2 short sentences describing what this dish/product is, written in English",
-      "culturalNote": "1 short sentence with a cultural tip or interesting fact about this dish, written in English (use an empty string if there is nothing noteworthy)"
+      "eatingMethod": ["2 short steps for how to eat this dish, written in English"],
+      "description": "1 short sentence describing what this dish/product is, written in English",
+      "culturalNote": "1 short sentence with a cultural tip, written in English (empty string if nothing noteworthy)"
     }
   ]
 }
 
 Rules:
-- Return between 1 and 10 dish entries — as many distinct food/drink items as you can clearly read, but never invent items that aren't actually visible in the photo.
+- "menuItemCount" is the total number of distinct food/drink items you can see in the photo, INCLUDING any you did not return because of the 10-item limit.
+- Return between 1 and 10 dish entries — as many distinct food/drink items as you can clearly read, but never invent items that aren't actually visible in the photo. If there are more than 10, return the first 10 in reading order.
+- "ingredientSource" is "printed" only when the ingredients/allergens come from text actually printed in the photo (an ingredient label or a menu description line). If you only see the dish name and are describing the usual recipe, use "inferred". Most menu boards that list only names are "inferred".
+- Keep every text field short (the whole answer must fit in a limited output budget).
 - "spicy" must be an integer from 0 to 3 (0 = none, 1 = mild, 2 = hot, 3 = extreme).
 - Only use allergen ids from the exact list given — never invent new ones.
 - If you genuinely cannot identify any food item at all, return {"dishes": []}.
@@ -132,7 +156,13 @@ module.exports = async function handler(req, res) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: 'Server is missing GEMINI_API_KEY. Add it in Vercel > Project Settings > Environment Variables, then redeploy.' });
+    res.status(500).json({ error: 'Server is missing GEMINI_API_KEY. Add it in Vercel > Project Settings > Environment Variables, then redeploy.', code: 'AI_CONFIG', retryable: false });
+    return;
+  }
+
+  // [PKG5-08] Size check before the regex runs on a huge string.
+  if (imageBase64.length > MAX_IMAGE_BASE64_CHARS) {
+    gemini.sendFailure(res, gemini.ERROR_CODES.IMAGE_TOO_LARGE, 'Image is too large. Resize it before uploading.');
     return;
   }
 
@@ -140,11 +170,15 @@ module.exports = async function handler(req, res) {
   // base64 payload plus a separate mime type field.
   const match = imageBase64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!match) {
-    res.status(400).json({ error: 'imageBase64 must be a data: URL (e.g. "data:image/jpeg;base64,...")' });
+    res.status(400).json({ error: 'imageBase64 must be a data: URL (e.g. "data:image/jpeg;base64,...")', code: 'IMAGE_INVALID', retryable: false });
     return;
   }
-  const mimeType = match[1];
+  const mimeType = match[1].toLowerCase();
   const base64Data = match[2];
+  if (ALLOWED_IMAGE_MIME_TYPES.indexOf(mimeType) === -1) {
+    gemini.sendFailure(res, gemini.ERROR_CODES.IMAGE_INVALID, `Unsupported image type: ${mimeType}`);
+    return;
+  }
 
   // [IMP-05] 이미지 식별: 사진 바이트 자체(SHA-256)를 캐시 키로 쓴다 —
   // 같은 사진을 다시 올리면(언어만 바꿔 재요청하거나, 실수로 같은 사진을
@@ -158,34 +192,36 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          { text: ANALYSIS_PROMPT_TEXT },
+          { inline_data: { mime_type: mimeType, data: base64Data } }
+        ]
+      }
+    ],
+    generationConfig: gemini.buildGenerationConfig(GEMINI_MODEL, {
+      maxOutputTokens: ANALYSIS_MAX_OUTPUT_TOKENS,
+      thinkingBudget: ANALYSIS_THINKING_BUDGET,
+    }),
+  };
+  const startedAt = Date.now();
+
+  let response;
   try {
-    const response = await fetchWithRetry(
-      () => fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: ANALYSIS_PROMPT_TEXT },
-                  { inline_data: { mime_type: mimeType, data: base64Data } }
-                ]
-              }
-            ],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              maxOutputTokens: 3072
-            }
-          })
-        }
-      ),
+    response = await fetchWithRetry(
+      () => {
+        // [PKG5-01] Per-attempt timeout, capped by what is left of the total budget.
+        const remaining = Math.max(1000, Math.min(ATTEMPT_TIMEOUT_MS, TOTAL_BUDGET_MS - (Date.now() - startedAt)));
+        const { url, init } = gemini.buildGeminiRequest(GEMINI_MODEL, apiKey, requestBody, AbortSignal.timeout(remaining));
+        return fetch(url, init);
+      },
       {
         // [IMP-13] 429/502/503/504 및 네트워크 오류만 재시도한다. 400처럼
         // 영구적인 요청 오류는 fetchWithRetry가 즉시 그대로 돌려준다.
         maxAttempts: 3,
-        maxTotalMs: 20000,
+        maxTotalMs: TOTAL_BUDGET_MS,
         baseDelayMs: 500,
         maxDelayMs: 8000,
         onRetry: (attempt, delayMs, reason) => {
@@ -193,35 +229,44 @@ module.exports = async function handler(req, res) {
         },
       }
     );
+  } catch (err) {
+    const failure = gemini.classifyThrownError(err);
+    gemini.logFailure('analyze-menu', failure);
+    gemini.sendFailure(res, failure, failure.code === 'AI_TIMEOUT' ? 'The AI provider timed out.' : 'Could not reach the AI provider.');
+    return;
+  }
 
+  try {
     if (!response.ok) {
       const errText = await response.text();
-      console.error('Gemini API error:', response.status, errText);
-      res.status(502).json({ error: 'The AI provider request failed. Check your API key.' });
+      const failure = gemini.classifyHttpFailure(response.status, errText, true);
+      gemini.logFailure('analyze-menu', failure);
+      gemini.sendFailure(res, failure, `The AI provider request failed (${failure.code}).`);
       return;
     }
 
     const data = await response.json();
-    const content =
-      data.candidates &&
-      data.candidates[0] &&
-      data.candidates[0].content &&
-      data.candidates[0].content.parts &&
-      data.candidates[0].content.parts[0] &&
-      data.candidates[0].content.parts[0].text;
-
-    if (!content) {
-      console.error('Unexpected Gemini response shape:', JSON.stringify(data));
-      res.status(502).json({ error: 'No content returned from the AI provider.' });
+    const extracted = gemini.extractCandidateText(data);
+    if (extracted.failure) {
+      gemini.logFailure('analyze-menu', extracted.failure, data.usageMetadata);
+      const message = extracted.failure.code === 'AI_OUTPUT_TRUNCATED'
+        ? 'The AI answer was cut off before it finished (too many items in one photo).'
+        : extracted.failure.code === 'AI_BLOCKED'
+          ? 'The AI provider declined to analyze this image.'
+          : 'No content returned from the AI provider.';
+      gemini.sendFailure(res, extracted.failure, message);
       return;
     }
+    const content = extracted.text;
 
     let parsed;
     try {
       parsed = JSON.parse(content);
     } catch (parseErr) {
-      console.error('Failed to parse AI JSON response:', content);
-      res.status(502).json({ error: 'The AI response was not valid JSON.' });
+      // Log only the size, not the model text.
+      gemini.logFailure('analyze-menu', { ...gemini.ERROR_CODES.RESPONSE_INVALID, finishReason: extracted.finishReason }, data.usageMetadata);
+      console.error('[analyze-menu] JSON.parse failed, text length', content.length);
+      gemini.sendFailure(res, gemini.ERROR_CODES.RESPONSE_INVALID, 'The AI response was not valid JSON.');
       return;
     }
 
@@ -235,13 +280,28 @@ module.exports = async function handler(req, res) {
       console.error('[IMP-02] AI 응답이 스키마 계약을 벗어나 사용 가능한 dish가 하나도 없음:', JSON.stringify(validated.validationIssues));
       // [IMP-05] 실패 응답은 캐시하지 않는다 — 다음 요청(예: 재시도)이
       // 이번과 같은 일시적 실패를 그대로 재사용하면 안 되기 때문이다.
-      res.status(502).json({ error: 'The AI response did not match the expected schema.', validationIssues: validated.validationIssues });
+      gemini.sendFailure(res, gemini.ERROR_CODES.RESPONSE_INVALID, 'The AI response did not match the expected schema.', { validationIssues: validated.validationIssues });
       return;
     }
 
     if (validated.validationIssues.length > 0) {
       console.warn('[IMP-02] AI 응답 일부 필드가 계약을 벗어남(정규화 후 진행):', JSON.stringify(validated.validationIssues));
     }
+
+    // [PKG5-02] Enforce the 10-dish cap (LIMITS.MAX_DISHES was declared in
+    // dish-schema.js but never applied; translate-dish rejects >10 with 400).
+    const returnedBeforeCap = validated.dishes.length;
+    if (validated.dishes.length > MAX_DISHES) validated.dishes = validated.dishes.slice(0, MAX_DISHES);
+    validated.coverage = buildCoverage(parsed, returnedBeforeCap, validated.dishes.length);
+
+    // [PKG5-02] Where the ingredient info came from: read from the photo
+    // ("printed") or the model's guess from the dish name ("inferred").
+    // Unknown/missing values become "inferred" (the safer reading).
+    const rawDishes = Array.isArray(parsed.dishes) ? parsed.dishes : [];
+    validated.dishes.forEach((dish) => {
+      const raw = rawDishes.find((d) => d && (d.name_ko === dish.nameKo || d.name_en === dish.nameEn));
+      dish.ingredientSource = raw && raw.ingredientSource === 'printed' ? 'printed' : 'inferred';
+    });
 
     // [IMP-04] analysisId: 클라이언트가 이후 /api/translate-dish를 호출할 때
     // "이 번역이 어느 분석 결과에 속하는지"를 밝히는 안정적인 식별자로 쓴다.
@@ -253,9 +313,24 @@ module.exports = async function handler(req, res) {
 
     res.status(200).json(validated);
   } catch (err) {
-    console.error('analyze-menu handler error:', err);
-    res.status(500).json({ error: 'Internal server error while analyzing the photo.' });
+    console.error('analyze-menu handler error:', err && err.name, err && err.message);
+    res.status(500).json({ error: 'Internal server error while analyzing the photo.', code: 'AI_RESPONSE_INVALID', retryable: true });
   }
+}
+
+// [PKG5-02] How much of the menu this result covers. visibleItemCount comes
+// from the model's own count, so it is an estimate; it is null when the
+// model did not report a usable number. isComplete is false whenever we know
+// some visible items are missing, and null when we cannot tell.
+function buildCoverage(parsed, returnedBeforeCap, returnedCount) {
+  const raw = parsed && parsed.menuItemCount;
+  const visible = Number.isInteger(raw) && raw >= 0 && raw <= 200 ? raw : null;
+  const effectiveVisible = visible === null ? null : Math.max(visible, returnedBeforeCap);
+  let isComplete;
+  if (returnedBeforeCap > returnedCount) isComplete = false;
+  else if (effectiveVisible === null) isComplete = null;
+  else isComplete = effectiveVisible <= returnedCount;
+  return { returnedCount, visibleItemCount: effectiveVisible, maxDishes: MAX_DISHES, isComplete };
 }
 
 // [IMP-05] 테스트에서 캐시 적중/크기/만료를 직접 들여다볼 수 있게 노출한다

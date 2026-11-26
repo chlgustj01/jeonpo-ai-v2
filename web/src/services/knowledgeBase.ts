@@ -183,7 +183,13 @@ export function buildKnowledgeReportForDish(
   getUncertainCustomAllergenIds: () => Set<string>
 ) {
   const activeIds = new Set(standardAllergens.map((a) => a.id));
-  return buildDishKnowledgeReport(foodKB.kb, dish, {
+  // [Package 5] The knowledge DB is keyed by English canonical ingredient
+  // names. After translation, dish.ingredients holds e.g. Japanese text
+  // ("豆腐") that never matches, so the DB check silently changed with the
+  // UI language. Look up the canonical English text when it is available.
+  const d = dish as { ingredients?: string; canonicalIngredients?: string } | null;
+  const lookupDish = d && typeof d.canonicalIngredients === 'string' ? { ...d, ingredients: d.canonicalIngredients } : dish;
+  return buildDishKnowledgeReport(foodKB.kb, lookupDish, {
     kbStatus: foodKB.status,
     analysisSource,
     dishKey,

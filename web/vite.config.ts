@@ -47,6 +47,14 @@ export default defineConfig({
   optimizeDeps: {
     include: ['@shared/allergens.js', '@shared/food-knowledge.js'],
   },
+  // [Package 5] `vite preview` (production bundle) gets the same proxy, so
+  // the built app can be smoke-tested locally against dev-server.js.
+  preview: {
+    proxy: {
+      '/api': { target: 'http://localhost:3000', changeOrigin: true },
+      '/data': { target: 'http://localhost:3000', changeOrigin: true },
+    },
+  },
   server: {
     // shared/*.js lives one directory above this Vite project's root
     // (web/) — allow the dev server to read it (otherwise Vite refuses to

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { analyzeMenu, translateDish, buildTranslatedDishList, AnalyzeMenuError } from '../services/api';
+import { analyzeMenu, translateDish, buildTranslatedDishList, ApiError, type ApiErrorCode } from '../services/api';
 import { hashStringForCache } from '../lib/speech';
-import type { Dish, Lang } from '../types';
+import type { AnalysisCoverage, Dish, Lang } from '../types';
 
 // Ports §IMP-04/05/06 (separate analysis/translation, caching, request
 // cancellation + staleness guards) as a zustand store instead of the
@@ -24,7 +24,12 @@ const MAX_CLIENT_TRANSLATION_CACHE_ENTRIES = 20;
 interface ScanState {
   kind: ScanKind;
   status: ScanStatus;
-  errorMessage: string | null;
+  errorMessage: string | null; // developer diagnostic only (shown under "Technical details")
+  errorCode: ApiErrorCode | null;
+  errorRetryable: boolean;
+  // [Package 5] the image of the failed request, so "Try Again" can resend it
+  failedImage: string | null;
+  coverage: AnalysisCoverage | null;
   displayedDishes: Dish[];
   lastAnalysis: { imageHash: string; analysisId: string; canonicalDishes: Dish[] } | null;
   translationCache: Map<string, TranslationCacheEntry>;
@@ -37,6 +42,7 @@ interface ScanState {
   translationAbortController: AbortController | null;
 
   analyzePhoto: (imageBase64: string) => Promise<void>;
+  retryAnalysis: () => Promise<void>;
   translateCurrent: (lang: Lang) => Promise<void>;
   showDemoDish: (dish: Dish) => void;
   reset: () => void;
@@ -52,10 +58,13 @@ function cacheTranslatedDishes(cache: Map<string, TranslationCacheEntry>, key: s
   }
 }
 
+const CLEARED_ERROR = { errorMessage: null, errorCode: null, errorRetryable: false, failedImage: null } as const;
+
 export const useScanStore = create<ScanState>()((set, get) => ({
   kind: null,
   status: 'idle',
-  errorMessage: null,
+  ...CLEARED_ERROR,
+  coverage: null,
   displayedDishes: [],
   lastAnalysis: null,
   translationCache: new Map(),
@@ -86,7 +95,23 @@ export const useScanStore = create<ScanState>()((set, get) => ({
     st.analysisAbortController?.abort();
     st.translationAbortController?.abort();
     const controller = new AbortController();
-    set({ analysisAbortController: controller, isAnalyzing: true, inFlightImageHash: imageHash, status: 'analyzing', errorMessage: null });
+    // [Package 5] Clear the previous photo's result as soon as a new
+    // analysis starts. Before, the old dishes stayed in displayedDishes and
+    // were rendered next to the error if the new analysis failed, so a
+    // previous menu could read as the current one.
+    set({
+      analysisAbortController: controller,
+      isAnalyzing: true,
+      inFlightImageHash: imageHash,
+      status: 'analyzing',
+      ...CLEARED_ERROR,
+      kind: null,
+      displayedDishes: [],
+      lastAnalysis: null,
+      coverage: null,
+      partialResults: false,
+      lastTranslationFailed: false,
+    });
 
     try {
       const data = await analyzeMenu(imageBase64, controller.signal);
@@ -96,19 +121,33 @@ export const useScanStore = create<ScanState>()((set, get) => ({
         lastAnalysis: { imageHash, analysisId: data.analysisId, canonicalDishes: data.dishes },
         kind: 'multi',
         partialResults: data.validationStatus === 'partial',
+        coverage: data.coverage ?? null,
         isAnalyzing: false,
         inFlightImageHash: null,
       });
       await get().translateCurrent(currentLang());
     } catch (err) {
       if ((err as Error)?.name === 'AbortError') return;
+      if (get().analysisAbortController !== controller) return; // superseded
+      const apiErr = err instanceof ApiError ? err : null;
       set({
         status: 'error',
         isAnalyzing: false,
         inFlightImageHash: null,
-        errorMessage: err instanceof AnalyzeMenuError ? err.message : 'analysis failed',
+        kind: null,
+        displayedDishes: [],
+        errorCode: apiErr ? apiErr.code : 'UNKNOWN',
+        errorRetryable: apiErr ? apiErr.retryable : true,
+        errorMessage: apiErr ? apiErr.diagnostic : 'UNKNOWN',
+        failedImage: imageBase64,
       });
     }
+  },
+
+  async retryAnalysis() {
+    const { failedImage, errorRetryable } = get();
+    if (!failedImage || !errorRetryable) return;
+    await get().analyzePhoto(failedImage);
   },
 
   async translateCurrent(lang) {
@@ -141,8 +180,10 @@ export const useScanStore = create<ScanState>()((set, get) => ({
       set({ displayedDishes: translated, status: 'ready', lastTranslationFailed: false });
     } catch (err) {
       if ((err as Error)?.name === 'AbortError') return;
+      if (get().translationAbortController !== controller) return;
       // Translation failure keeps the English original on screen rather
-      // than losing the result entirely (§IMP-04).
+      // than losing the result entirely (§IMP-04). Not cached, so the next
+      // language switch tries again.
       set({ displayedDishes: analysis.canonicalDishes, status: 'ready', lastTranslationFailed: true });
     }
   },
@@ -157,6 +198,10 @@ export const useScanStore = create<ScanState>()((set, get) => ({
       lastAnalysis: null,
       lastTranslationFailed: false,
       partialResults: false,
+      coverage: null,
+      isAnalyzing: false,
+      inFlightImageHash: null,
+      ...CLEARED_ERROR,
     });
   },
 
@@ -166,7 +211,8 @@ export const useScanStore = create<ScanState>()((set, get) => ({
     set({
       kind: null,
       status: 'idle',
-      errorMessage: null,
+      ...CLEARED_ERROR,
+      coverage: null,
       displayedDishes: [],
       lastAnalysis: null,
       isAnalyzing: false,

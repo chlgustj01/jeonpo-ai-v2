@@ -1,70 +1,77 @@
-# Jeonpo Guide — AI Menu Translation Setup
+# 전포 AI (FitBridge) V2
 
-This app uses real AI (Google's Gemini 2.5 Flash vision model) to read and
-translate photos of Korean menus/dishes. To keep your API key private and
-secure, it lives in a small serverless function (`api/analyze-menu.js`)
-instead of the main webpage — the browser never sees the key.
+외국인 여행자가 한국 식당의 **메뉴판이나 음식 사진**을 찍으면 메뉴를 번역하고, 자신의 **알레르기·식이·맵기 프로필**과 비교해 위험 요소를 먼저 보여 주는 웹 앱입니다.
 
-Gemini was chosen because Google offers a genuinely free tier: **no credit
-card required**, ever. There's a daily usage limit, but it's generous
-enough for personal/small-scale use (roughly 250 requests per day on the
-`gemini-2.5-flash` model at the time this was written — Google's limits do
-change over time, so double-check at https://ai.google.dev/gemini-api/docs/rate-limits
-if you hit unexpected errors).
+- AI 분석: Google Gemini (서버리스 함수에서만 호출, API Key는 브라우저에 노출되지 않음)
+- 프론트엔드: React 19 + TypeScript + Vite (`web/`) — 기존 Vanilla JS 버전(`index.html`)은 비교 기준으로 보존
+- 6개 언어: English, 日本語, 简体中文, Tiếng Việt, Español, 한국어
 
-**Trade-off to know about**: on the free tier, Google's terms allow your
-photos and the AI's responses to be used to help improve their models. If
-that matters for your use case, you can enable billing on the same API key
-later to opt out of that — see Google's docs for details.
+> 앱의 결과는 **AI 추정**입니다. GREEN은 "프로필과 일치하는 성분을 찾지 못함"이라는 뜻이며, 안전 보장이 아닙니다. 심한 알레르기가 있다면 반드시 직원에게 확인하세요.
 
-## One-time setup (do this once)
+![실제 메뉴판 분석 결과](web/screenshots/final-real-menu-desktop.png)
 
-### 1. Get a free Gemini API key
-1. Go to https://aistudio.google.com/apikey
-2. Sign in with a Google account (any personal Gmail account works)
-3. Click **"Create API Key"** — choose or create a Google Cloud project when prompted (this is just a free container, not a billing account)
-4. Copy the key — you can view it again later if needed, but keep it safe
+## 주요 기능
 
-### 2. Deploy this folder to Vercel
-1. Go to https://vercel.com/drop
-2. Drag this **entire folder** (or the zip file) onto the page
-   - Important: make sure `index.html` and the `api` folder both end up at
-     the top level of the project — not nested inside another folder.
-3. Wait for it to deploy — you'll get a link like `https://your-project.vercel.app`
+- **메뉴판·음식 사진 분석:** 사진 1장당 최대 10개 항목. 일부만 분석되면 "약 N개 중 M개"로 안내합니다.
+- **위험도 표시:** RED / ORANGE / GREEN / UNKNOWN / ERROR를 아이콘과 글자로 구분합니다(색상만으로 구분하지 않음). 프로필을 바꾸면 재분석 없이 즉시 반영됩니다.
+- **정보 출처 표시:** AI 추정, 사진 글자에서 읽음, 문헌 기반 식품 지식 DB, 데모 데이터를 각각 따로 표시합니다.
+- **직원 질문 4유형**(재료 / 내 알레르기 / 교차 오염 / 종합): 한국어 문구, 음성(TTS), 복사를 지원합니다.
+- **기타:** 리뷰 저장·수정·삭제(기기 내 저장), 지도, 환율 계산기.
 
-### 3. Add your API key to Vercel (required — the app won't work without this)
-1. In your Vercel dashboard, open this project
-2. Go to **Settings > Environment Variables**
-3. Add a new variable:
-   - **Name:** `GEMINI_API_KEY`
-   - **Value:** the key you copied in step 1
-4. Go to the **Deployments** tab, find the latest deployment, click the **⋯**
-   menu, and choose **Redeploy** so the new variable takes effect
+## 로컬 실행
 
-### 4. Test it
-Open your `https://your-project.vercel.app` link on your phone, go to the
-"Menu Translation" tab, take or upload a photo of Korean food, and press
-the scan button. It should return a real translation, ingredients, spice
-level, and allergy check based on the actual photo.
+필요: Node.js 20 이상(개발 환경 v24), Gemini API Key (https://aistudio.google.com/apikey)
 
-## Cost
+```bash
+# 1. 프로젝트 루트에 .env 작성 (Git에 커밋되지 않음)
+echo "GEMINI_API_KEY=발급받은_키" > .env
 
-Free, as long as you stay within Google's daily free-tier limits. No card
-is ever charged unless you deliberately enable billing on the project.
+# 2. 백엔드 (api/ + data/generated) — :3000
+node dev-server.js
 
-## If something goes wrong
+# 3. React 개발 서버 — :5173 (/api, /data는 :3000으로 프록시)
+cd web && npm install && npm run dev
+```
 
-- **"AI 분석에 실패했습니다" toast appears every time** → Check that
-  `GEMINI_API_KEY` (not `OPENAI_API_KEY` — the name matters) is set
-  correctly in Vercel's Environment Variables for *this specific project*,
-  and that you redeployed after adding it. Every new Vercel Drop upload
-  creates a brand-new project, so environment variables must be re-added
-  each time you deploy a fresh copy.
-- **413 / "Payload Too Large" errors** → Already handled: photos are
-  automatically resized in the browser before upload. If you still see
-  this, the photo may be an unusual format — try a standard JPEG/PNG photo.
-- **429 errors** → You've hit Google's free daily/per-minute limit. Wait a
-  bit (limits reset daily) or check your usage at https://aistudio.google.com
-- **Still failing** → Check the Vercel project's **Logs** tab right after
-  triggering a scan — it will show the exact error message from Google's
-  API, which is the fastest way to diagnose the specific problem.
+WSL 네트워크 경로(`\\wsl.localhost\...`)에서는 Vite 파일 감시가 동작하지 않습니다. 소스를 수정한 뒤에는 개발 서버를 다시 시작하세요.
+
+## 테스트
+
+```bash
+cd web && npx tsc -b && npm run build                      # 타입 검사 + 프로덕션 빌드
+cd web && npx vite preview --port 4173                     # 프로덕션 번들 (백엔드 :3000 필요)
+cd web && E2E_BASE_URL=http://localhost:4173 npx playwright test   # Mock API E2E (mobile + desktop)
+node tests/pkg5-after.js                                   # 서버/오류 처리 (Mock) — 그 밖의 tests/*.js도 같은 방식
+py -m unittest tests.test_food_knowledge                   # 식품 지식 ETL
+py scripts/validate_food_knowledge.py                      # Master DB 검증
+```
+
+실제 Gemini를 호출하는 E2E는 기본적으로 건너뜁니다. 실행하려면 `REAL_GEMINI=1`을 지정하세요(호출 비용 발생). 결과는 [docs/TEST-REPORT.md](docs/TEST-REPORT.md)에 있습니다.
+
+## 배포
+
+`vercel.json`이 준비되어 있습니다(React 빌드 + 루트 `api/` 서버리스 함수). Vercel 환경변수에 `GEMINI_API_KEY`를 등록하세요(`VITE_` 접두어 금지). **공개 배포 전에는 요청 제한과 비용 상한 설정이 필요합니다.** 자세한 내용은 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)에 있습니다.
+
+## 문제 해결
+
+| 화면 안내 | 원인 / 조치 |
+|---|---|
+| "분석 서비스 설정에 문제" | `GEMINI_API_KEY` 누락 또는 무효, 모델 접근 불가. 서버 로그의 `[analyze-menu] AI_CONFIG` 줄에서 상태와 사유를 확인 |
+| "요청이 많아 잠시 처리할 수 없음" | Gemini 쿼터 초과(429). 잠시 후 다시 시도 |
+| "한 번에 분석하기에는 항목이 너무 많음" | 응답이 출력 한도에서 잘림. 메뉴판 일부만 찍어 다시 시도 |
+| "음식이나 메뉴 항목을 찾지 못함" | 음식과 무관한 사진이거나 글자를 읽을 수 없는 사진 |
+| 화면 하단 "기술 정보" | 개발자용 오류 코드(`AI_QUOTA · HTTP 429` 등). 서버 로그와 함께 확인 |
+
+Gemini 무료 등급에서는 Google이 사진과 응답을 모델 개선에 사용할 수 있습니다. 결제를 활성화하면 이를 해제할 수 있습니다(Google 약관 참고).
+
+## 문서
+
+| 문서 | 내용 |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 구조, 요청 흐름, 오류 모델, 정보 출처 구분 |
+| [docs/V2-CHANGELOG.md](docs/V2-CHANGELOG.md) | 해커톤 원본 / Vanilla V2 / React V2 비교 |
+| [docs/TEST-REPORT.md](docs/TEST-REPORT.md) | 최종 테스트 결과 (Mock / 실제 API 구분) |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Vercel 배포 설정과 공개 배포 전 필수 항목 |
+| [docs/PORTFOLIO.md](docs/PORTFOLIO.md) | 문제 해결 사례와 정량 성과 |
+| [docs/devlog/](docs/devlog/) | 과제별 개발 기록 (IMP-01 ~ PACKAGE-05) |
+| [PRD.md](PRD.md), [CLAUDE.md](CLAUDE.md) | 해커톤 팀 요구사항과 합의 |

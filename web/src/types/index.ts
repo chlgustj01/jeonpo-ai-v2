@@ -46,14 +46,30 @@ export interface Dish {
   description: string;
   culturalNote: string;
   fieldStatus?: Partial<Record<'allergens' | 'crossContactAllergens' | 'spicy', FieldStatus>>;
-  dishValidationStatus?: 'ok' | 'partial';
+  // [Package 5] values corrected to what shared/dish-schema.js actually emits.
+  dishValidationStatus?: 'valid' | 'degraded';
+  // [Package 5] 'printed' = read from text in the photo; 'inferred' = the
+  // model's guess from the dish name. Absent on demo data.
+  ingredientSource?: 'printed' | 'inferred';
+  // [Package 5] English ingredients from analysis, set when `ingredients`
+  // holds a translation. Used only for the knowledge-DB lookup.
+  canonicalIngredients?: string;
+}
+
+// [Package 5] How much of the photographed menu this result covers.
+export interface AnalysisCoverage {
+  returnedCount: number;
+  visibleItemCount: number | null; // model's own count (estimate)
+  maxDishes: number;
+  isComplete: boolean | null; // null = cannot tell
 }
 
 export interface AnalyzeMenuResponse {
   dishes: Dish[];
   analysisId: string;
-  validationStatus: 'ok' | 'partial' | 'empty' | 'invalid';
+  validationStatus: 'valid' | 'partial' | 'empty' | 'invalid';
   validationIssues?: unknown[];
+  coverage?: AnalysisCoverage;
 }
 
 export interface TranslationEntry {

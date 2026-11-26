@@ -1,10 +1,17 @@
+import { lazy, Suspense } from 'react';
 import { useProfileStore, useProfileHydration } from './store/profileStore';
 import { useUIStore } from './store/uiStore';
 import { AppShell } from './components/layout/AppShell';
-import { OnboardingScreen } from './components/onboarding/OnboardingScreen';
-import { MapView } from './components/map/MapView';
-import { ScannerView } from './components/scanner/ScannerView';
-import { ExchangeView } from './components/exchange/ExchangeView';
+import { Spinner } from './components/common/ui';
+
+// [Package 5 §7] Each screen is its own chunk. Leaflet (map tab only) and
+// the onboarding screen were in the single 580KB bundle every visitor
+// downloaded; now the first load fetches only the shell + the screen shown.
+// Sizes before/after: docs/devlog/PACKAGE-05.md §7.
+const OnboardingScreen = lazy(() => import('./components/onboarding/OnboardingScreen').then((m) => ({ default: m.OnboardingScreen })));
+const MapView = lazy(() => import('./components/map/MapView').then((m) => ({ default: m.MapView })));
+const ScannerView = lazy(() => import('./components/scanner/ScannerView').then((m) => ({ default: m.ScannerView })));
+const ExchangeView = lazy(() => import('./components/exchange/ExchangeView').then((m) => ({ default: m.ExchangeView })));
 
 function App() {
   const hasHydrated = useProfileHydration((s) => s.hasHydrated);
@@ -16,13 +23,21 @@ function App() {
   // onboarding screen (see store/profileStore.ts's hydration comment).
   if (!hasHydrated) return null;
 
-  if (!onboardingComplete) return <OnboardingScreen />;
+  if (!onboardingComplete) {
+    return (
+      <Suspense fallback={<Spinner />}>
+        <OnboardingScreen />
+      </Suspense>
+    );
+  }
 
   return (
     <AppShell>
-      {activeTab === 'map' && <MapView />}
-      {activeTab === 'scanner' && <ScannerView />}
-      {activeTab === 'exchange' && <ExchangeView />}
+      <Suspense fallback={<Spinner />}>
+        {activeTab === 'map' && <MapView />}
+        {activeTab === 'scanner' && <ScannerView />}
+        {activeTab === 'exchange' && <ExchangeView />}
+      </Suspense>
     </AppShell>
   );
 }

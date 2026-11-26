@@ -2,25 +2,113 @@
 // client-side retry by design, same as the vanilla app (§IMP-13 devlog:
 // the server already retries Gemini; doubling that client-side would just
 // call *our* server twice without fixing the underlying Gemini flakiness,
-// and complicates the abort/request-id logic below for no benefit).
+// and complicates the abort/request-id logic below for no benefit). The
+// user can retry by hand, and only for errors marked retryable.
 import type { AnalyzeMenuResponse, Dish, Lang, TranslateDishResponse } from '../types';
 
-export class AnalyzeMenuError extends Error {}
-export class TranslateDishError extends Error {}
+// [Package 5] Error codes from shared/gemini-client.js, plus two that only
+// the client can detect (NETWORK: our own server unreachable; NO_FOOD_FOUND:
+// a valid but empty analysis).
+export type ApiErrorCode =
+  | 'AI_CONFIG'
+  | 'AI_QUOTA'
+  | 'AI_UNAVAILABLE'
+  | 'AI_TIMEOUT'
+  | 'AI_NETWORK'
+  | 'IMAGE_INVALID'
+  | 'IMAGE_TOO_LARGE'
+  | 'AI_RESPONSE_INVALID'
+  | 'AI_OUTPUT_TRUNCATED'
+  | 'AI_BLOCKED'
+  | 'NETWORK'
+  | 'NO_FOOD_FOUND'
+  | 'UNKNOWN';
+
+const KNOWN_CODES: ReadonlySet<string> = new Set<ApiErrorCode>([
+  'AI_CONFIG', 'AI_QUOTA', 'AI_UNAVAILABLE', 'AI_TIMEOUT', 'AI_NETWORK', 'IMAGE_INVALID', 'IMAGE_TOO_LARGE',
+  'AI_RESPONSE_INVALID', 'AI_OUTPUT_TRUNCATED', 'AI_BLOCKED', 'NETWORK', 'NO_FOOD_FOUND', 'UNKNOWN',
+]);
+
+// i18n key for each code (web/src/i18n/package5Extra.ts).
+export const ERROR_MESSAGE_KEYS: Record<ApiErrorCode, string> = {
+  AI_CONFIG: 'errAiConfig',
+  AI_QUOTA: 'errAiQuota',
+  AI_UNAVAILABLE: 'errAiUnavailable',
+  AI_TIMEOUT: 'errAiTimeout',
+  AI_NETWORK: 'errAiUnavailable',
+  IMAGE_INVALID: 'errImageInvalid',
+  IMAGE_TOO_LARGE: 'errImageTooLarge',
+  AI_RESPONSE_INVALID: 'errAiResponseInvalid',
+  AI_OUTPUT_TRUNCATED: 'errAiTruncated',
+  AI_BLOCKED: 'errAiBlocked',
+  NETWORK: 'errNetwork',
+  NO_FOOD_FOUND: 'errNoFood',
+  UNKNOWN: 'errUnknown',
+};
+
+// Used when an older server (or a proxy page) returns no `code`.
+function codeFromHttpStatus(status: number): { code: ApiErrorCode; retryable: boolean } {
+  if (status === 429) return { code: 'AI_QUOTA', retryable: true };
+  if (status === 413) return { code: 'IMAGE_TOO_LARGE', retryable: false };
+  if (status === 504) return { code: 'AI_TIMEOUT', retryable: true };
+  if (status === 400 || status === 415) return { code: 'IMAGE_INVALID', retryable: false };
+  if (status >= 500) return { code: 'AI_UNAVAILABLE', retryable: true };
+  return { code: 'UNKNOWN', retryable: true };
+}
+
+export class ApiError extends Error {
+  readonly code: ApiErrorCode;
+  readonly retryable: boolean;
+  readonly httpStatus: number | null;
+  constructor(code: ApiErrorCode, retryable: boolean, httpStatus: number | null, devMessage: string) {
+    super(devMessage);
+    this.name = 'ApiError';
+    this.code = code;
+    this.retryable = retryable;
+    this.httpStatus = httpStatus;
+  }
+  // Shown only inside the collapsed "Technical details" line.
+  get diagnostic(): string {
+    return `${this.code}${this.httpStatus !== null ? ` · HTTP ${this.httpStatus}` : ''}`;
+  }
+}
+export class AnalyzeMenuError extends ApiError {}
+export class TranslateDishError extends ApiError {}
+
+async function postJson(url: string, body: unknown, signal: AbortSignal, ErrorClass: typeof ApiError): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (err) {
+    if ((err as Error)?.name === 'AbortError') throw err;
+    throw new ErrorClass('NETWORK', true, null, `${url} unreachable`);
+  }
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { code?: unknown; retryable?: unknown } | null;
+    const fallback = codeFromHttpStatus(response.status);
+    const code = payload && typeof payload.code === 'string' && KNOWN_CODES.has(payload.code) ? (payload.code as ApiErrorCode) : fallback.code;
+    const retryable = payload && typeof payload.retryable === 'boolean' ? payload.retryable : fallback.retryable;
+    throw new ErrorClass(code, retryable, response.status, `${url} failed: ${response.status}`);
+  }
+  try {
+    return await response.json();
+  } catch {
+    throw new ErrorClass('AI_RESPONSE_INVALID', true, response.status, `${url} returned non-JSON`);
+  }
+}
 
 export async function analyzeMenu(imageBase64: string, signal: AbortSignal): Promise<AnalyzeMenuResponse> {
-  const response = await fetch('/api/analyze-menu', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ imageBase64 }),
-    signal,
-  });
-  if (!response.ok) throw new AnalyzeMenuError(`analyze-menu failed: ${response.status}`);
-  const data = (await response.json()) as AnalyzeMenuResponse;
-  if (!isValidDishResponseEnvelope(data)) throw new AnalyzeMenuError('invalid response envelope');
-  if (data.validationStatus === 'empty' || data.validationStatus === 'invalid' || data.dishes.length === 0) {
-    throw new AnalyzeMenuError(`validationStatus=${data.validationStatus}`);
+  const data = await postJson('/api/analyze-menu', { imageBase64 }, signal, AnalyzeMenuError);
+  if (!isValidDishResponseEnvelope(data)) throw new AnalyzeMenuError('AI_RESPONSE_INVALID', true, 200, 'invalid response envelope');
+  if (data.validationStatus === 'empty' || data.dishes.length === 0) {
+    throw new AnalyzeMenuError('NO_FOOD_FOUND', false, 200, `validationStatus=${data.validationStatus}`);
   }
+  if (data.validationStatus === 'invalid') throw new AnalyzeMenuError('AI_RESPONSE_INVALID', true, 200, 'validationStatus=invalid');
   return data;
 }
 
@@ -39,10 +127,9 @@ export async function translateDish(
   dishes: Dish[],
   signal: AbortSignal
 ): Promise<TranslateDishResponse> {
-  const response = await fetch('/api/translate-dish', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  const data = await postJson(
+    '/api/translate-dish',
+    {
       analysisId,
       targetLanguage,
       dishes: dishes.map((d) => ({
@@ -54,11 +141,11 @@ export async function translateDish(
         description: d.description,
         culturalNote: d.culturalNote,
       })),
-    }),
+    },
     signal,
-  });
-  if (!response.ok) throw new TranslateDishError(`translate-dish failed: ${response.status}`);
-  return (await response.json()) as TranslateDishResponse;
+    TranslateDishError
+  );
+  return data as TranslateDishResponse;
 }
 
 // [§IMP-04] Merge translated display text onto the language-neutral
@@ -77,6 +164,8 @@ export function buildTranslatedDishList(
       ...dish,
       name: dish.nameKo && translatedName ? `${translatedName} (${dish.nameKo})` : translatedName || dish.name,
       ingredients: t.ingredients || dish.ingredients,
+      // [Package 5] kept for the knowledge-DB lookup (English-keyed).
+      canonicalIngredients: dish.canonicalIngredients ?? dish.ingredients,
       eatingMethod: t.eatingMethod && t.eatingMethod.length > 0 ? t.eatingMethod : dish.eatingMethod,
       description: t.description || dish.description,
       culturalNote: t.culturalNote !== undefined && t.culturalNote !== null ? t.culturalNote : dish.culturalNote,

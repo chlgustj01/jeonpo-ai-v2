@@ -13,7 +13,8 @@ export default defineConfig({
   retries: 0,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   use: {
-    baseURL: 'http://localhost:5173',
+    // [Package 5] E2E_BASE_URL=http://localhost:4173 runs the same suite against `vite preview` (production bundle).
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:5173',
     screenshot: 'on',
     trace: 'retain-on-failure',
   },

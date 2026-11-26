@@ -44,6 +44,19 @@ function loadApiHandler(name) {
 }
 
 const PORT = process.env.PORT || 3000;
+const MAX_BODY_BYTES = 4.5 * 1024 * 1024;
+
+// [PKG5-08] Static allowlist. Before, any .js/.json/.css/.html file under the
+// project root was served (tests/, web/node_modules/, package.json, docs
+// data, ...), and the root check startsWith(__dirname) also matched a
+// sibling folder such as "jeonpo-ai-v2-other". Now only the files the
+// vanilla app actually loads are served: index.html, the three browser
+// modules in shared/, and data/generated/*.json. Dotfiles (.env, .git) were
+// never served (no allowed extension) and still are not.
+const STATIC_ALLOWLIST = [
+  /^\/shared\/(allergens|dish-schema|food-knowledge)\.js$/,
+  /^\/data\/generated\/[A-Za-z0-9_-]+\.json$/,
+];
 
 const server = http.createServer(async (req, res) => {
   const apiMatch = req.method === 'POST' && req.url.match(/^\/api\/([a-zA-Z0-9-]+)$/);
@@ -54,9 +67,24 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'Unknown API endpoint' }));
       return;
     }
+    // [PKG5-08] Body size limit (Vercel's own limit is 4.5MB). Without this
+    // a client could stream an unbounded body into memory.
     let body = '';
-    req.on('data', chunk => { body += chunk; });
+    let bodyBytes = 0;
+    let tooLarge = false;
+    req.on('data', chunk => {
+      if (tooLarge) return;
+      bodyBytes += chunk.length;
+      if (bodyBytes > MAX_BODY_BYTES) {
+        tooLarge = true;
+        res.writeHead(413, { 'Content-Type': 'application/json', Connection: 'close' });
+        res.end(JSON.stringify({ error: 'Request body too large', code: 'IMAGE_TOO_LARGE', retryable: false }));
+        return;
+      }
+      body += chunk;
+    });
     req.on('end', async () => {
+      if (tooLarge) return;
       try {
         req.body = body ? JSON.parse(body) : {};
       } catch (err) {
@@ -105,11 +133,17 @@ const server = http.createServer(async (req, res) => {
   // 밖의 파일은 절대 서빙하지 않는다.
   if (req.method === 'GET') {
     const STATIC_CONTENT_TYPES = { '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8' };
-    const requestedPath = decodeURIComponent((req.url.split('?')[0]) || '');
+    let requestedPath;
+    try {
+      requestedPath = decodeURIComponent((req.url.split('?')[0]) || '');
+    } catch (e) {
+      requestedPath = '';
+    }
     const resolvedPath = path.normalize(path.join(__dirname, requestedPath));
     const ext = path.extname(resolvedPath);
+    const allowed = STATIC_ALLOWLIST.some((re) => re.test(requestedPath)) && !requestedPath.includes('..');
 
-    if (resolvedPath.startsWith(__dirname) && STATIC_CONTENT_TYPES[ext]) {
+    if (allowed && resolvedPath.startsWith(__dirname + path.sep) && STATIC_CONTENT_TYPES[ext]) {
       fs.readFile(resolvedPath, (err, data) => {
         if (err) {
           res.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -126,6 +160,8 @@ const server = http.createServer(async (req, res) => {
   res.writeHead(404, { 'Content-Type': 'text/plain' });
   res.end('Not found');
 });
+
+module.exports = server;
 
 server.listen(PORT, () => {
   console.log(`Dev server running at http://localhost:${PORT}`);

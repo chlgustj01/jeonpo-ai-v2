@@ -1,5 +1,6 @@
 import { translations } from './translations.generated';
 import { reviewStatsExtra } from './reviewStatsExtra';
+import { package5Extra, package5Overrides } from './package5Extra';
 import type { Lang } from '../types';
 
 export type { Lang } from '../types';
@@ -11,7 +12,24 @@ export type TranslationKey = keyof typeof translations.en;
 export function translate(lang: Lang, key: string): string {
   const table = (translations as Record<string, Record<string, string>>)[lang] || translations.en;
   const extra = reviewStatsExtra[lang] || reviewStatsExtra.en;
-  return table[key] ?? extra[key] ?? (translations.en as Record<string, string>)[key] ?? reviewStatsExtra.en[key] ?? key;
+  const p5o = package5Overrides[lang] || package5Overrides.en;
+  const p5 = package5Extra[lang] || package5Extra.en;
+  return (
+    p5o[key] ??
+    table[key] ??
+    extra[key] ??
+    p5[key] ??
+    package5Overrides.en[key] ??
+    (translations.en as Record<string, string>)[key] ??
+    reviewStatsExtra.en[key] ??
+    package5Extra.en[key] ??
+    key
+  );
+}
+
+// "{shown} of {total}" style placeholders.
+export function formatTemplate(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (m, name: string) => (name in values ? String(values[name]) : m));
 }
 
 export { translations };
