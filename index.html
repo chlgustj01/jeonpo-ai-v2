@@ -442,6 +442,9 @@
                   </div>
                 </div>
 
+                <!-- [IMP-18D-2] Food knowledge DB check (filled by applyKnowledgeReports) -->
+                <div class="bg-vintage-beige/30 px-3.5 pb-2 rounded-xl" id="single-dish-knowledge"></div>
+
                 <!-- Dietary Flags Badges -->
                 <div class="flex flex-wrap gap-1.5" id="spec-dietary-flags"></div>
 
@@ -717,6 +720,9 @@
        UMD 패턴 — 이 아래 메인 로직 <script> 블록보다 먼저 로드되어야
        normalizeSpicy/validateAndNormalizeDish 등이 전역으로 존재한다. -->
   <script src="shared/dish-schema.js"></script>
+  <!-- [IMP-18D-2] 식품 지식 DB 조회 공용 모듈(순수 함수, fetch 없음). 같은 UMD
+       패턴 — buildFoodKnowledgeBase/buildDishKnowledgeReport 등이 전역으로 존재한다. -->
+  <script src="shared/food-knowledge.js"></script>
 
   <!-- ==========================================
        JAVASCRIPT LOGIC & STATE HANDLING
@@ -748,6 +754,11 @@
       uploadedImageDataUrl: null,
       hasScannedResult: false, // true once a real AI menu-scan result is currently displayed
       lastScannedDishNamesKo: [],
+      // [IMP-18D-2] 최소한의 요청 식별 — 늦게 도착한 이전 AI 응답/지식 DB 조회
+      // 결과가 현재 화면에 섞여 들어오지 않게 한다.
+      scanRequestSeq: 0, // analyzeMenuPhotoWithAI 호출마다 1씩 증가
+      knowledgeRenderToken: 0, // 결과 화면을 새로 그리거나 지울 때마다 1씩 증가
+      lastKnowledgeReports: [], // 현재 화면에 표시된 음식별 지식 DB 보고서(디버깅/테스트용)
       rateAsOfDate: null,
       reviewsFilterMode: 'similar' // 'similar' | 'country' | 'all' — which reviews show in the list
     };
@@ -886,14 +897,22 @@
       return (text || '').normalize('NFC').trim().toLowerCase();
     }
 
-    function registerAllergenKBEntry(rawText, canonicalId, lang, source) {
+    function registerAllergenKBEntry(rawText, canonicalId, lang, source, evidenceMeta) {
       const key = normalizeAllergyText(rawText);
       if (!key) return;
       // 먼저 등록된 출처가 우선권을 가진다(아래 호출 순서: 표준 라벨 →
       // legacyId → 검증된 동의어 → 후보 알레르겐 라벨) — 나중에 로드되는
       // 출처가 이미 있는 매핑을 조용히 덮어쓰지 않게 한다.
       if (!allergenKB.index.has(key)) {
-        allergenKB.index.set(key, { canonicalId, lang, source });
+        const entry = { canonicalId, lang, source };
+        // [IMP-18D-2] 동의어 행의 근거(evidenceId/evidenceScope)를 함께 보관해
+        // 식재료 조회 결과의 근거 경로(Evidence Path)에서 출처를 추적할 수 있게
+        // 한다(추가 필드일 뿐, IMP-12의 매칭 동작은 그대로).
+        if (evidenceMeta) {
+          entry.evidenceId = evidenceMeta.evidenceId || '';
+          entry.evidenceScope = evidenceMeta.evidenceScope || '';
+        }
+        allergenKB.index.set(key, entry);
       }
     }
 
@@ -914,6 +933,11 @@
         const [aliasData, candidateData, manifestData] = await Promise.all([
           aliasRes.json(), candidateRes.json(), manifestRes.json(),
         ]);
+        // [IMP-18D-2] 식품 지식 DB 로더(loadFoodKnowledgeBase)가 manifest를 다시
+        // 다운로드하지 않도록 파싱 직후의 원본을 보관한다. 스키마 버전 불일치로
+        // 아래에서 실패하더라도 식품 지식 DB 쪽이 "schema_version_mismatch"를
+        // 정확히 구분해 보고할 수 있게 하기 위함이다.
+        allergenKB.fetchedManifest = manifestData;
 
         // [schemaVersion 호환성] 예상한 구조와 다른 버전이면, "일단 써보고
         // 터지는" 대신 아예 매칭 기능 자체를 비활성 상태로 둔다 — 구버전
@@ -939,7 +963,9 @@
         // 3) IMP-18D-1에서 문헌으로 검증 완료된 동의어(alias DB).
         const aliasRows = [...(aliasData.reviewed || []), ...(aliasData.literatureBacked || [])];
         aliasRows.forEach(row => {
-          registerAllergenKBEntry(row.alias, row.allergenId, row.lang, 'alias_db');
+          registerAllergenKBEntry(row.alias, row.allergenId, row.lang, 'alias_db', {
+            evidenceId: row.evidenceId, evidenceScope: row.evidenceScope,
+          });
         });
         // 4) 아직 활성화되지 않은 후보 알레르겐(18종)의 라벨 — 매핑은 되지만
         //    "위험도 판정에 자동 사용 안 함"을 구분하기 위해 별도 Set에도 기록.
@@ -963,6 +989,112 @@
     // 페이지 스크립트가 평가되는 즉시(onload를 기다리지 않고) 로딩을 시작한다
     // — addCustomAllergy()는 이 Promise를 기다렸다가 매칭을 수행한다.
     const allergenKnowledgeBaseReady = loadAllergenKnowledgeBase();
+
+    // ==========================================
+    // [IMP-18D-2] 식품 지식 DB(식재료-알레르기 관계) 로딩
+    // ==========================================
+    // IMP-12 로더(위)는 alias/candidate/manifest 3개 파일로 "알레르기 이름" 색인을
+    // 만든다. 여기서는 식재료 색인에 필요한 2개 파일만 추가로 받는다:
+    //   - ingredient-knowledge.json (식재료 39 / 확정 관계 22 / 문헌 후보 23)
+    //   - evidence-sources.json     (출처 31)
+    // manifest는 IMP-12 로더가 이미 받은 것(allergenKB.fetchedManifest)을 재사용해
+    // 같은 파일을 두 번 다운로드하지 않는다. 페이지당 한 번만 실행되고, 음식 분석
+    // 때마다 다시 받지 않는다(foodKB 상태 + foodKnowledgeBaseReady Promise 재사용).
+    const FOOD_KB_PATHS = {
+      ingredientKnowledge: 'data/generated/ingredient-knowledge.json',
+      evidenceSources: 'data/generated/evidence-sources.json',
+    };
+    // shared/food-knowledge.js 자체가 로드되지 않은 경우에도 앱 전체가 멈추지
+    // 않도록(ReferenceError 방지) 상태 문자열을 안전하게 꺼낸다.
+    const FOOD_KB_MODULE_AVAILABLE = typeof buildFoodKnowledgeBase === 'function' && typeof buildDishKnowledgeReport === 'function';
+    const FOOD_KB_STATUS = FOOD_KB_MODULE_AVAILABLE
+      ? FOOD_KB_LOAD_STATUS
+      : { LOADING: 'loading', READY: 'ready', LOAD_FAILED: 'load_failed' };
+    const foodKB = {
+      status: FOOD_KB_STATUS.LOADING,
+      reason: null,
+      kb: null,
+    };
+
+    async function loadFoodKnowledgeBase() {
+      if (!FOOD_KB_MODULE_AVAILABLE) {
+        foodKB.status = FOOD_KB_STATUS.LOAD_FAILED;
+        foodKB.reason = 'shared/food-knowledge.js not loaded';
+        console.error('[IMP-18D-2] shared/food-knowledge.js 로드 실패 — 식품 지식 DB 추가 확인 기능이 비활성화됩니다.');
+        return foodKB;
+      }
+      try {
+        // 두 파일 다운로드는 IMP-12 로딩과 병렬로 시작한다.
+        const filesPromise = Promise.all([
+          fetch(FOOD_KB_PATHS.ingredientKnowledge),
+          fetch(FOOD_KB_PATHS.evidenceSources),
+        ]);
+        const [ikRes, evRes] = await filesPromise;
+        await allergenKnowledgeBaseReady;
+        if (!ikRes.ok || !evRes.ok) {
+          throw new Error(`식품 지식 DB 파일 응답 실패(ingredient=${ikRes.status}, evidence=${evRes.status})`);
+        }
+        const [ikData, evData] = await Promise.all([ikRes.json(), evRes.json()]);
+        const built = buildFoodKnowledgeBase({
+          manifest: allergenKB.fetchedManifest || null,
+          ingredientKnowledge: ikData,
+          evidenceSources: evData,
+          activeAllergenIds: standardAllergens.map(a => a.id),
+        });
+        foodKB.status = built.status;
+        foodKB.reason = built.reason;
+        foodKB.kb = built.status === FOOD_KB_STATUS.READY ? built : null;
+        if (built.status === FOOD_KB_STATUS.READY) {
+          console.info(`[IMP-18D-2] 식품 지식 DB 로드 완료 — 식재료 ${built.stats.ingredientCount}, 색인 키 ${built.stats.indexKeyCount}, 사용 관계 ${built.stats.usableRelationTotal} (dataVersion=${built.dataVersion})`);
+          if (built.issues.length > 0) console.warn(`[IMP-18D-2] 식품 지식 DB 검증 메모 ${built.issues.length}건(제외/보정) — 상세는 foodKB.kb.issues 참고:`, built.issues.map(i => i.relationId || i.id || i.key || i.kind).join(', '));
+        } else {
+          console.error(`[IMP-18D-2] 식품 지식 DB 사용 불가 — ${built.status}: ${built.reason}`);
+        }
+      } catch (err) {
+        foodKB.status = FOOD_KB_STATUS.LOAD_FAILED;
+        foodKB.reason = String(err && err.message || err);
+        foodKB.kb = null;
+        console.error('[IMP-18D-2] 식품 지식 DB 로드 실패 — AI 분석 결과는 그대로 표시하고, 추가 확인 정보만 생략합니다:', err);
+      }
+      return foodKB;
+    }
+
+    const foodKnowledgeBaseReady = loadFoodKnowledgeBase();
+
+    // IMP-12 알레르겐 색인(allergenKB.index)을 식재료 문자열 조회에 재사용한다.
+    // 후보 알레르겐(candidate_db)은 isActiveAllergen 검사에서 걸러진다.
+    function lookupAllergenTermForIngredient(text) {
+      if (!allergenKB.loaded) return null;
+      const hit = allergenKB.index.get(normalizeAllergyText(text));
+      if (!hit) return null;
+      return { allergenId: hit.canonicalId, source: hit.source, evidenceId: hit.evidenceId || '', evidenceScope: hit.evidenceScope || '' };
+    }
+
+    // 사용자가 아직 확정하지 않은 모호한 커스텀 알레르기(IMP-12, 예: "shellfish")의
+    // 후보 id 집합 — 지식 DB 결과도 "불확실한 일치"로 표시하기 위함.
+    function getUncertainCustomAllergenIds() {
+      const ids = new Set();
+      state.customAllergies.forEach(c => {
+        if (c.mappingStatus === 'ambiguous' && !c.userConfirmed) (c.candidateIds || []).forEach(id => ids.add(id));
+      });
+      return ids;
+    }
+
+    // 음식 1개 → 지식 DB 보고서. dish 원본은 수정하지 않는다.
+    function buildKnowledgeReportForDish(dish, analysisSource, dishKey) {
+      if (!FOOD_KB_MODULE_AVAILABLE) return null; // 렌더 쪽에서 "확인 불가"로 표시
+      const activeIds = new Set(standardAllergens.map(a => a.id));
+      return buildDishKnowledgeReport(foodKB.kb, dish, {
+        kbStatus: foodKB.status,
+        analysisSource,
+        dishKey,
+        isUserAllergicTo: userHasAllergyTo,
+        uncertainAllergenIds: getUncertainCustomAllergenIds(),
+        allergenTermLookup: lookupAllergenTermForIngredient,
+        isActiveAllergen: id => activeIds.has(id),
+        ambiguousTerms: KNOWN_AMBIGUOUS_CUSTOM_TERMS,
+      });
+    }
 
     // [Entity Resolution] 사용자가 입력한 자유 텍스트 한 건을 분석해, 아래
     // 5가지 결과 중 하나로 분류한다(이번 요청 §5의 A~E 그대로):
@@ -1119,6 +1251,34 @@
         spicyHot: "Hot 🔥",
         spicyExtreme: "Extreme 🌶️",
         spicyUnknown: "Spice level unknown", // [IMP-01] AI가 맵기를 판단하지 못했을 때 전용 표시
+        // [IMP-18D-2] 식품 지식 DB 추가 확인 안내 문구
+        kbSectionTitle: "Food Knowledge DB Check",
+        kbCheckNeeded: "Please double-check",
+        kbAiIngredientLabel: "AI-estimated ingredient",
+        kbDemoIngredientLabel: "Demo data ingredient",
+        kbAiAllergensLabel: "AI-estimated allergens",
+        kbAiAllergensNone: "none reported",
+        kbRelDefinition: "classified as this allergen",
+        kbRelRawMaterial: "made with this allergen as a raw material",
+        kbRelTypicalRecipe: "often included in typical recipes",
+        kbRelProductVariant: "varies by product",
+        kbRelUnconfirmed: "inclusion not confirmed",
+        kbRelAllergenTerm: "a verified name for this allergen",
+        kbTierConfirmed: "confirmed DB relation",
+        kbTierLiterature: "literature-based, not expert-reviewed",
+        kbTierTerm: "verified name match",
+        kbSourceLabel: "Source",
+        kbAskStaff: "Please confirm actual use with the restaurant staff.",
+        kbOtherRelationsLabel: "Other DB relations",
+        kbUnresolvedLabel: "Not found in the knowledge DB (not confirmed safe)",
+        kbAmbiguousLabel: "Ambiguous ingredient name, not matched automatically",
+        kbNoIngredients: "No ingredient list was provided, so the knowledge DB check could not be done.",
+        kbNoRelations: "No allergen relations were found in the knowledge DB. This does not mean the dish is allergen-free.",
+        kbLoading: "Checking the food knowledge DB…",
+        kbUnavailable: "The food knowledge DB check is unavailable. This does not mean the dish is safe.",
+        kbLiteratureNote: "Knowledge DB relations are based on literature and have not yet been reviewed by experts.",
+        kbBannerAdvisoryNote: "However, some ingredients need an additional check (see below).",
+        kbBannerUnavailableNote: "(Food knowledge DB check not completed.)",
         spicyDesc0: "The safest level for travelers visiting Korea for the first time. You can comfortably enjoy Korean flavors with zero spice, like samgyeopsal, soy-marinated bulgogi, and rolled egg.",
         spicyDesc1: "A middle step for those who want to try a little spice. You can happily enjoy rinsed (mild) kimchi, non-spicy seafood pancake, or a savory doenjang stew.",
         spicyDesc2: "For travelers who know how to enjoy a spicy kick. If you can happily eat regular red kimchi, sweet-and-spicy yangnyeom chicken, and Korea's classic spicy ramen (Shin Ramyun level), this is for you.",
@@ -1208,6 +1368,34 @@
         spicyHot: "辛い 🔥",
         spicyExtreme: "激辛 🌶️",
         spicyUnknown: "辛さ不明",
+        // [IMP-18D-2] 식품 지식 DB 추가 확인 안내 문구
+        kbSectionTitle: "食品知識DBチェック",
+        kbCheckNeeded: "追加確認が必要",
+        kbAiIngredientLabel: "AIが推定した食材",
+        kbDemoIngredientLabel: "デモデータの食材",
+        kbAiAllergensLabel: "AIが推定したアレルゲン",
+        kbAiAllergensNone: "報告なし",
+        kbRelDefinition: "このアレルゲンに分類される",
+        kbRelRawMaterial: "このアレルゲンを原材料として作られる",
+        kbRelTypicalRecipe: "一般的なレシピによく含まれる",
+        kbRelProductVariant: "製品によって異なる",
+        kbRelUnconfirmed: "含有は未確認",
+        kbRelAllergenTerm: "このアレルゲンの確認済み名称",
+        kbTierConfirmed: "確定済みDB関係",
+        kbTierLiterature: "文献に基づく・専門家未検証",
+        kbTierTerm: "確認済み名称の一致",
+        kbSourceLabel: "出典",
+        kbAskStaff: "実際に使われているかは店員に確認してください。",
+        kbOtherRelationsLabel: "その他のDB関係",
+        kbUnresolvedLabel: "知識DBに見つからない食材（安全確認ではありません）",
+        kbAmbiguousLabel: "意味が曖昧な食材名のため自動照合していません",
+        kbNoIngredients: "食材リストがないため、知識DBチェックができませんでした。",
+        kbNoRelations: "知識DBにアレルゲン関係は見つかりませんでした。アレルゲンが含まれないという意味ではありません。",
+        kbLoading: "食品知識DBを確認中…",
+        kbUnavailable: "食品知識DBチェックを利用できません。安全という意味ではありません。",
+        kbLiteratureNote: "知識DBの関係は文献に基づくもので、まだ専門家の検証を受けていません。",
+        kbBannerAdvisoryNote: "ただし、追加確認が必要な食材があります（下記参照）。",
+        kbBannerUnavailableNote: "（食品知識DBチェック未完了）",
         spicyDesc0: "初めて韓国を訪れる旅行者にとって最も安全なレベルです。サムギョプサル、醤油味プルコギ、卵焼きなど、辛さゼロの韓国の味を安心して楽しめます。",
         spicyDesc1: "少しずつ辛さに挑戦したい方向けの中間レベルです。水キムチや辛くない海鮮チヂミ、香り豊かなテンジャンチゲくらいなら気持ちよく楽しめます。",
         spicyDesc2: "ピリッとした辛さを楽しめる旅行者向けのレベルです。普通の赤いキムチ、甘辛いヤンニョムチキン、韓国の代表的な辛ラーメン（辛ラーメンレベル）を美味しく食べられるならおすすめです。",
@@ -1297,6 +1485,34 @@
         spicyHot: "特辣 🔥",
         spicyExtreme: "魔鬼辣 🌶️",
         spicyUnknown: "辣度未知",
+        // [IMP-18D-2] 식품 지식 DB 추가 확인 안내 문구
+        kbSectionTitle: "食品知识库核查",
+        kbCheckNeeded: "需要进一步确认",
+        kbAiIngredientLabel: "AI 推测的食材",
+        kbDemoIngredientLabel: "演示数据中的食材",
+        kbAiAllergensLabel: "AI 推测的过敏原",
+        kbAiAllergensNone: "未报告",
+        kbRelDefinition: "归类为该过敏原",
+        kbRelRawMaterial: "以该过敏原为原料制成",
+        kbRelTypicalRecipe: "常见食谱中通常含有",
+        kbRelProductVariant: "因产品而异",
+        kbRelUnconfirmed: "是否含有尚未确认",
+        kbRelAllergenTerm: "该过敏原的已验证名称",
+        kbTierConfirmed: "已确认的数据库关系",
+        kbTierLiterature: "基于文献，未经专家审核",
+        kbTierTerm: "已验证名称匹配",
+        kbSourceLabel: "来源",
+        kbAskStaff: "实际是否使用，请向餐厅工作人员确认。",
+        kbOtherRelationsLabel: "其他数据库关系",
+        kbUnresolvedLabel: "知识库中未找到的食材（并非安全确认）",
+        kbAmbiguousLabel: "食材名称含义不明确，未自动匹配",
+        kbNoIngredients: "没有提供食材列表，无法进行知识库核查。",
+        kbNoRelations: "知识库中未找到过敏原关系。这并不表示该菜品不含过敏原。",
+        kbLoading: "正在核查食品知识库…",
+        kbUnavailable: "食品知识库核查不可用。这并不表示该菜品是安全的。",
+        kbLiteratureNote: "知识库中的关系基于文献，尚未经过专家审核。",
+        kbBannerAdvisoryNote: "但有部分食材需要进一步确认（见下方）。",
+        kbBannerUnavailableNote: "（食品知识库核查未完成）",
         spicyDesc0: "对第一次来韩国旅行的游客来说最安全的等级。您可以放心享用五花肉、酱汁烤肉（不辣）、鸡蛋卷等完全不辣的韩式风味。",
         spicyDesc1: "适合想稍微尝试一点辣味的中间等级。您可以愉快地享用水泡菜、不辣的海鲜葱饼，或香浓的大酱汤。",
         spicyDesc2: "适合懂得享受微辣口味的旅行者。如果您能开心地吃普通的红色泡菜、甜辣的调味炸鸡，以及韩国代表性的辛辣拉面（辛拉面级别），推荐选择这个等级。",
@@ -1386,6 +1602,34 @@
         spicyHot: "Khá cay 🔥",
         spicyExtreme: "Siêu cay 🌶️",
         spicyUnknown: "Chưa xác định độ cay",
+        // [IMP-18D-2] 식품 지식 DB 추가 확인 안내 문구
+        kbSectionTitle: "Kiểm tra CSDL tri thức thực phẩm",
+        kbCheckNeeded: "Cần kiểm tra thêm",
+        kbAiIngredientLabel: "Nguyên liệu do AI ước đoán",
+        kbDemoIngredientLabel: "Nguyên liệu trong dữ liệu demo",
+        kbAiAllergensLabel: "Chất gây dị ứng do AI ước đoán",
+        kbAiAllergensNone: "không có báo cáo",
+        kbRelDefinition: "được phân loại là chất gây dị ứng này",
+        kbRelRawMaterial: "được làm từ chất gây dị ứng này làm nguyên liệu",
+        kbRelTypicalRecipe: "thường có trong công thức phổ biến",
+        kbRelProductVariant: "tùy theo sản phẩm",
+        kbRelUnconfirmed: "chưa xác nhận có chứa hay không",
+        kbRelAllergenTerm: "tên đã xác minh của chất gây dị ứng này",
+        kbTierConfirmed: "quan hệ CSDL đã xác nhận",
+        kbTierLiterature: "dựa trên tài liệu, chưa được chuyên gia thẩm định",
+        kbTierTerm: "khớp tên đã xác minh",
+        kbSourceLabel: "Nguồn",
+        kbAskStaff: "Vui lòng hỏi nhân viên nhà hàng để xác nhận có thực sự sử dụng hay không.",
+        kbOtherRelationsLabel: "Quan hệ CSDL khác",
+        kbUnresolvedLabel: "Không tìm thấy trong CSDL tri thức (không phải xác nhận an toàn)",
+        kbAmbiguousLabel: "Tên nguyên liệu không rõ nghĩa, không tự động đối chiếu",
+        kbNoIngredients: "Không có danh sách nguyên liệu nên không thể kiểm tra CSDL tri thức.",
+        kbNoRelations: "Không tìm thấy quan hệ chất gây dị ứng trong CSDL tri thức. Điều này không có nghĩa là món ăn không chứa chất gây dị ứng.",
+        kbLoading: "Đang kiểm tra CSDL tri thức thực phẩm…",
+        kbUnavailable: "Không thể kiểm tra CSDL tri thức thực phẩm. Điều này không có nghĩa là món ăn an toàn.",
+        kbLiteratureNote: "Các quan hệ trong CSDL tri thức dựa trên tài liệu và chưa được chuyên gia thẩm định.",
+        kbBannerAdvisoryNote: "Tuy nhiên, một số nguyên liệu cần kiểm tra thêm (xem bên dưới).",
+        kbBannerUnavailableNote: "(Chưa hoàn tất kiểm tra CSDL tri thức thực phẩm.)",
         spicyDesc0: "Mức an toàn nhất cho du khách lần đầu đến Hàn Quốc. Bạn có thể yên tâm thưởng thức các món hoàn toàn không cay như thịt ba chỉ nướng, bulgogi sốt tương và trứng cuộn.",
         spicyDesc1: "Mức trung bình cho những ai muốn thử một chút cay. Bạn có thể vui vẻ ăn kim chi đã rửa (ít cay), bánh xèo hải sản không cay, hoặc canh tương đậu thơm ngon.",
         spicyDesc2: "Dành cho du khách biết thưởng thức vị cay nồng. Nếu bạn có thể ăn ngon miệng kim chi đỏ thông thường, gà chiên sốt cay ngọt, và mì cay nổi tiếng của Hàn Quốc (mức độ như Shin Ramyun), đây là mức phù hợp với bạn.",
@@ -1475,6 +1719,34 @@
         spicyHot: "Picante 🔥",
         spicyExtreme: "Extremo 🌶️",
         spicyUnknown: "Nivel de picante desconocido",
+        // [IMP-18D-2] 식품 지식 DB 추가 확인 안내 문구
+        kbSectionTitle: "Verificación con la base de conocimiento",
+        kbCheckNeeded: "Requiere verificación adicional",
+        kbAiIngredientLabel: "Ingrediente estimado por la IA",
+        kbDemoIngredientLabel: "Ingrediente de los datos de demostración",
+        kbAiAllergensLabel: "Alérgenos estimados por la IA",
+        kbAiAllergensNone: "ninguno informado",
+        kbRelDefinition: "clasificado como este alérgeno",
+        kbRelRawMaterial: "elaborado con este alérgeno como materia prima",
+        kbRelTypicalRecipe: "suele incluirse en recetas típicas",
+        kbRelProductVariant: "depende del producto",
+        kbRelUnconfirmed: "inclusión no confirmada",
+        kbRelAllergenTerm: "un nombre verificado de este alérgeno",
+        kbTierConfirmed: "relación confirmada en la base",
+        kbTierLiterature: "basado en bibliografía, sin revisión de expertos",
+        kbTierTerm: "coincidencia de nombre verificado",
+        kbSourceLabel: "Fuente",
+        kbAskStaff: "Confirma con el personal del restaurante si realmente se usa.",
+        kbOtherRelationsLabel: "Otras relaciones de la base",
+        kbUnresolvedLabel: "No encontrado en la base de conocimiento (no confirma que sea seguro)",
+        kbAmbiguousLabel: "Nombre de ingrediente ambiguo, no se relacionó automáticamente",
+        kbNoIngredients: "No se proporcionó una lista de ingredientes, así que no se pudo verificar con la base de conocimiento.",
+        kbNoRelations: "No se encontraron relaciones con alérgenos en la base de conocimiento. Esto no significa que el plato no contenga alérgenos.",
+        kbLoading: "Verificando la base de conocimiento de alimentos…",
+        kbUnavailable: "La verificación con la base de conocimiento no está disponible. Esto no significa que el plato sea seguro.",
+        kbLiteratureNote: "Las relaciones de la base se basan en bibliografía y aún no han sido revisadas por expertos.",
+        kbBannerAdvisoryNote: "Sin embargo, algunos ingredientes requieren verificación adicional (ver abajo).",
+        kbBannerUnavailableNote: "(Verificación con la base de conocimiento no completada.)",
         spicyDesc0: "El nivel más seguro para viajeros que visitan Corea por primera vez. Puedes disfrutar tranquilamente de sabores coreanos sin nada de picante, como samgyeopsal, bulgogi marinado en soja y tortilla de huevo enrollada.",
         spicyDesc1: "Un nivel intermedio para quienes quieren atreverse un poco con el picante. Puedes disfrutar felizmente de kimchi suave (lavado), panqueque de mariscos sin picante, o un sabroso guiso de doenjang.",
         spicyDesc2: "Para viajeros que saben disfrutar de un toque picante. Si puedes comer con gusto el kimchi rojo normal, el pollo yangnyeom dulce y picante, y el famoso ramen picante de Corea (nivel Shin Ramyun), este nivel es para ti.",
@@ -1564,6 +1836,34 @@
         spicyHot: "매움 🔥",
         spicyExtreme: "아주 매움 🌶️",
         spicyUnknown: "맵기 확인 불가",
+        // [IMP-18D-2] 식품 지식 DB 추가 확인 안내 문구
+        kbSectionTitle: "식품 지식 DB 확인",
+        kbCheckNeeded: "추가 확인 필요",
+        kbAiIngredientLabel: "AI 추정 식재료",
+        kbDemoIngredientLabel: "데모 데이터 식재료",
+        kbAiAllergensLabel: "AI 추정 알레르기 성분",
+        kbAiAllergensNone: "보고 없음",
+        kbRelDefinition: "이 알레르기 성분으로 분류됨",
+        kbRelRawMaterial: "이 알레르기 성분을 원재료로 만듦",
+        kbRelTypicalRecipe: "일반 레시피에 흔히 포함됨",
+        kbRelProductVariant: "제품에 따라 다름",
+        kbRelUnconfirmed: "포함 여부 확인 안 됨",
+        kbRelAllergenTerm: "이 알레르기 성분의 검증된 명칭",
+        kbTierConfirmed: "확정된 DB 관계",
+        kbTierLiterature: "문헌 근거 · 전문가 미검토",
+        kbTierTerm: "검증된 명칭 일치",
+        kbSourceLabel: "출처",
+        kbAskStaff: "실제 사용 여부는 음식점 직원에게 확인해 주세요.",
+        kbOtherRelationsLabel: "기타 DB 관계",
+        kbUnresolvedLabel: "지식 DB에서 찾지 못한 식재료 (안전 확인 아님)",
+        kbAmbiguousLabel: "의미가 모호한 식재료명이라 자동으로 연결하지 않았습니다",
+        kbNoIngredients: "식재료 목록이 없어 지식 DB 확인을 하지 못했습니다.",
+        kbNoRelations: "지식 DB에서 알레르기 관계를 찾지 못했습니다. 알레르기 성분이 없다는 뜻은 아닙니다.",
+        kbLoading: "식품 지식 DB 확인 중…",
+        kbUnavailable: "식품 지식 DB 확인을 할 수 없습니다. 안전하다는 뜻은 아닙니다.",
+        kbLiteratureNote: "지식 DB의 관계는 문헌 근거 기반이며 아직 전문가 검토를 받지 않았습니다.",
+        kbBannerAdvisoryNote: "단, 추가 확인이 필요한 성분이 있습니다(아래 참고).",
+        kbBannerUnavailableNote: "(식품 지식 DB 확인 미완료)",
         spicyDesc0: "처음 한국을 방문하는 여행자에게 가장 안전한 단계입니다. 삼겹살, 간장 불고기, 계란말이처럼 매운맛이 전혀 없는 한국의 맛을 편안하게 즐길 수 있어요.",
         spicyDesc1: "매운 음식에 조금씩 도전해 보고 싶은 분들을 위한 중간 단계입니다. 씻은 김치나 맵지 않은 해물파전, 구수한 된장찌개 정도를 기분 좋게 즐길 수 있어요.",
         spicyDesc2: "매콤한 맛을 즐길 줄 아는 여행자를 위한 단계입니다. 일반적인 빨간 김치, 달콤매콤한 양념치킨, 그리고 한국의 대표적인 매운 라면(신라면 수준)을 맛있게 드실 수 있다면 추천해요.",
@@ -3382,9 +3682,17 @@
     function clearStaleScanResult() {
       document.getElementById('scan-result-pane').classList.add('hidden');
       state.hasScannedResult = false;
+      // [IMP-18D-2] 화면을 비웠으면, 아직 대기 중인 지식 DB 지연 갱신도 무효화한다.
+      state.knowledgeRenderToken += 1;
+      state.lastKnowledgeReports = [];
     }
 
     async function analyzeMenuPhotoWithAI(imageDataUrl) {
+      // [IMP-18D-2] 요청 식별: 사진을 연달아 분석하면 먼저 보낸 요청의 응답이
+      // 나중에 도착할 수 있다. 가장 최근 요청의 응답만 화면에 반영한다
+      // (늦게 온 이전 응답은 성공이든 실패든 화면을 건드리지 않음).
+      const requestId = ++state.scanRequestSeq;
+      const isStale = () => requestId !== state.scanRequestSeq;
       try {
         const response = await fetch('/api/analyze-menu', {
           method: 'POST',
@@ -3395,6 +3703,11 @@
           })
         });
 
+        if (isStale()) {
+          console.info(`[IMP-18D-2] 이전 분석 요청(#${requestId})의 응답이 늦게 도착해 무시함(현재 #${state.scanRequestSeq})`);
+          return;
+        }
+
         if (!response.ok) {
           const errBody = await response.json().catch(() => ({}));
           console.error('AI analysis failed:', response.status, errBody);
@@ -3404,6 +3717,7 @@
         }
 
         const aiData = await response.json();
+        if (isStale()) return;
 
         // [IMP-02 §10, Defense in Depth] 서버가 "검증/정규화를 이미
         // 마쳤다"고 응답했더라도(200 OK), 그 주장을 그대로 믿지 않고 봉투
@@ -3450,6 +3764,7 @@
         renderMultiDishScanResult(dishes);
       } catch (err) {
         console.error('analyzeMenuPhotoWithAI error:', err);
+        if (isStale()) return;
         clearStaleScanResult();
         showToast(translations[state.lang].toastAiError);
       }
@@ -3653,6 +3968,149 @@
       return labelsByLevel[spicyValue] || unknownLabel;
     }
 
+    // ==========================================
+    // [IMP-18D-2] 지식 DB 추가 확인 정보 — Explainable UI (최소 범위)
+    // ==========================================
+    // 위험도 배너(RED/ORANGE/GREEN)는 checkDishSafety() 결과 그대로 두고, 그 아래에
+    // "왜 추가 확인이 필요한지"를 근거와 함께 보여주는 작은 영역만 추가한다.
+    // 모든 동적 문자열은 escapeHtml()을 거친다(IMP-02 §11 정책 유지).
+    function kbText(key) {
+      const trans = translations[state.lang] || translations.en;
+      return trans[key] || translations.en[key] || '';
+    }
+
+    function getAllergenDisplayLabel(allergenId) {
+      const entry = standardAllergens.find(a => a.id === allergenId);
+      if (!entry) return allergenId;
+      return `${entry.icon || ''} ${entry[state.lang] || entry.en}`.trim();
+    }
+
+    function getRelationCategoryLabel(category) {
+      const keyByCategory = {
+        ingredient_definition: 'kbRelDefinition',
+        raw_material: 'kbRelRawMaterial',
+        typical_recipe: 'kbRelTypicalRecipe',
+        product_variant: 'kbRelProductVariant',
+        unconfirmed: 'kbRelUnconfirmed',
+        allergen_name: 'kbRelAllergenTerm',
+      };
+      return kbText(keyByCategory[category] || 'kbRelUnconfirmed');
+    }
+
+    function getKnowledgeTierLabel(tier) {
+      if (tier === 'confirmed_relation') return kbText('kbTierConfirmed');
+      if (tier === 'literature_candidate') return kbText('kbTierLiterature');
+      return kbText('kbTierTerm');
+    }
+
+    function renderKnowledgeFindingLine(finding, ingredientLabelKey) {
+      const dbName = finding.ingredientId
+        ? (state.lang === 'ko' ? finding.ingredientNameKo : finding.ingredientNameEn) || finding.ingredientId
+        : getAllergenDisplayLabel(finding.allergenId);
+      let sourceHtml = '';
+      if (finding.source) {
+        const title = escapeHtml(finding.source.title || finding.source.id);
+        const linked = finding.source.url && isSafeHttpUrl(finding.source.url)
+          ? `<a href="${escapeHtml(finding.source.url)}" target="_blank" rel="noopener noreferrer" class="underline">${title}</a>`
+          : title;
+        sourceHtml = `<p class="text-[9px] opacity-80">${escapeHtml(kbText('kbSourceLabel'))}: ${linked}</p>`;
+      }
+      return `<p>${escapeHtml(kbText(ingredientLabelKey))}: <span class="font-semibold">${escapeHtml(finding.originalIngredient)}</span> → ${escapeHtml(dbName)} · ${escapeHtml(getRelationCategoryLabel(finding.relationCategory))} <span class="opacity-80">(${escapeHtml(getKnowledgeTierLabel(finding.knowledgeTier))})</span></p>${sourceHtml}`;
+    }
+
+    function renderKnowledgeSectionHtml(report) {
+      const parts = [];
+      const isDemo = report && report.aiAnalysis && report.aiAnalysis.source === 'demo_location';
+      const ingredientLabelKey = isDemo ? 'kbDemoIngredientLabel' : 'kbAiIngredientLabel';
+
+      if (report && !isDemo) {
+        const aiIds = report.aiAnalysis.allergens;
+        const aiText = aiIds.length > 0 ? aiIds.map(getAllergenDisplayLabel).join(', ') : kbText('kbAiAllergensNone');
+        parts.push(`<p class="text-[10px] text-vintage-olive"><span class="font-bold">${escapeHtml(kbText('kbAiAllergensLabel'))}:</span> ${escapeHtml(aiText)}</p>`);
+      }
+
+      if (!report || report.lookupStatus !== 'ready') {
+        const key = report && report.lookupStatus === 'loading' ? 'kbLoading' : 'kbUnavailable';
+        parts.push(`<p class="text-[10px] text-amber-800">${escapeHtml(kbText(key))}</p>`);
+      } else if (!report.ingredientsAvailable) {
+        parts.push(`<p class="text-[10px] text-amber-800">${escapeHtml(kbText('kbNoIngredients'))}</p>`);
+      } else {
+        let showsLiterature = false;
+        report.userAdvisories.forEach(group => {
+          const lines = group.findings.map(f => {
+            if (f.knowledgeTier === 'literature_candidate') showsLiterature = true;
+            return renderKnowledgeFindingLine(f, ingredientLabelKey);
+          }).join('');
+          parts.push(`<div class="p-2 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-[10px] space-y-0.5">
+            <p class="font-bold text-[11px]">⚠️ ${escapeHtml(kbText('kbCheckNeeded'))} · ${escapeHtml(getAllergenDisplayLabel(group.allergenId))}</p>
+            ${lines}
+            <p class="font-semibold">${escapeHtml(kbText('kbAskStaff'))}</p>
+          </div>`);
+        });
+
+        report.ambiguousIngredients.forEach(a => {
+          const tone = a.matchesUserProfile ? 'text-amber-800 font-semibold' : 'text-vintage-olive';
+          const candidates = a.candidateAllergenIds.map(getAllergenDisplayLabel).join(' / ');
+          parts.push(`<p class="text-[10px] ${tone}">${escapeHtml(kbText('kbAmbiguousLabel'))}: ${escapeHtml(a.original)}${candidates ? ` (${escapeHtml(candidates)})` : ''}</p>`);
+        });
+
+        const otherGroups = report.groups.filter(g => report.userAdvisories.indexOf(g) === -1);
+        if (otherGroups.length > 0) {
+          const text = otherGroups.map(g => {
+            if (g.findings.some(f => f.knowledgeTier === 'literature_candidate')) showsLiterature = true;
+            const originals = Array.from(new Set(g.findings.map(f => f.originalIngredient)));
+            return `${getAllergenDisplayLabel(g.allergenId)} (${originals.join(', ')})`;
+          }).join(', ');
+          parts.push(`<p class="text-[10px] text-vintage-olive"><span class="font-bold">${escapeHtml(kbText('kbOtherRelationsLabel'))}:</span> ${escapeHtml(text)}</p>`);
+        }
+
+        if (report.knowledgeFindings.length === 0 || report.noRelationIngredients.length > 0) {
+          const noRelNames = report.noRelationIngredients.map(n => n.original);
+          parts.push(`<p class="text-[10px] text-vintage-olive">${escapeHtml(kbText('kbNoRelations'))}${noRelNames.length ? ` (${escapeHtml(noRelNames.join(', '))})` : ''}</p>`);
+        }
+
+        if (report.unresolvedIngredients.length > 0) {
+          const names = report.unresolvedIngredients.map(u => u.original).join(', ');
+          parts.push(`<p class="text-[10px] text-vintage-olive"><span class="font-bold">${escapeHtml(kbText('kbUnresolvedLabel'))}:</span> ${escapeHtml(names)}</p>`);
+        }
+
+        if (showsLiterature) {
+          parts.push(`<p class="text-[9px] text-vintage-olive italic">${escapeHtml(kbText('kbLiteratureNote'))}</p>`);
+        }
+      }
+
+      return `<div class="space-y-1 pt-1 border-t border-vintage-dark/10">
+        <span class="text-[9px] font-bold text-vintage-olive uppercase">${escapeHtml(kbText('kbSectionTitle'))}</span>
+        ${parts.join('')}
+      </div>`;
+    }
+
+    // GREEN 배너가 "추가 확인 필요" 정보와 모순되어 보이지 않도록 안내 문구만 덧붙인다
+    // (위험도 단계 자체는 바꾸지 않는다 — autoApplyToRiskJudgment 정책 준수).
+    function composeGreenBannerDesc(reports) {
+      const base = kbText('safeDesc');
+      const hasAdvisory = reports.some(r => r && (r.userAdvisories.length > 0 || r.ambiguousIngredients.some(a => a.matchesUserProfile)));
+      if (hasAdvisory) return `${base} ${kbText('kbBannerAdvisoryNote')}`;
+      const notCompleted = reports.some(r => !r || r.lookupStatus !== 'ready');
+      if (notCompleted) return `${base} ${kbText('kbBannerUnavailableNote')}`;
+      return base;
+    }
+
+    // entries: [{ dish, el, dishKey }]. renderToken이 현재 화면과 다르면(새 분석이
+    // 시작됐거나 화면이 지워짐) 아무것도 바꾸지 않는다. 지식 DB가 아직 로딩 중이면
+    // "확인 중"을 먼저 보여주고, 로딩이 끝난 뒤 같은 토큰일 때만 다시 그린다.
+    function applyKnowledgeReports(renderToken, entries, analysisSource, greenBannerDescEl) {
+      if (renderToken !== state.knowledgeRenderToken) return false;
+      const reports = entries.map(e => buildKnowledgeReportForDish(e.dish, analysisSource, e.dishKey));
+      entries.forEach((e, i) => { if (e.el) e.el.innerHTML = renderKnowledgeSectionHtml(reports[i]); });
+      state.lastKnowledgeReports = reports;
+      if (greenBannerDescEl) greenBannerDescEl.innerText = composeGreenBannerDesc(reports);
+      if (foodKB.status === FOOD_KB_STATUS.LOADING) {
+        foodKnowledgeBaseReady.then(() => applyKnowledgeReports(renderToken, entries, analysisSource, greenBannerDescEl));
+      }
+      return true;
+    }
+
     // Render a list of multiple dishes detected in one photo (real AI scan
     // of a menu board). Shows one overall safety banner (worst case across
     // all dishes) plus every dish's name, ingredients, spice level, and its
@@ -3714,8 +4172,11 @@
       const listContainer = document.getElementById('multi-dish-list');
       listContainer.innerHTML = '';
       const howToEatLabel = translations[state.lang].howToEatLabel || 'How to Eat';
+      // [IMP-18D-2] 이번 화면 전용 토큰 — 음식별 지식 DB 결과를 이 화면에만 연결한다.
+      const knowledgeRenderToken = ++state.knowledgeRenderToken;
+      const knowledgeEntries = [];
 
-      perDish.forEach(({ dish }) => {
+      perDish.forEach(({ dish }, dishIndex) => {
         const card = document.createElement('div');
         card.className = "bg-vintage-beige/30 p-3 rounded-xl space-y-2";
         const stepsHtml = (dish.eatingMethod || []).map((step, idx) => `
@@ -3738,8 +4199,13 @@
             <span class="shrink-0">💡</span><span>${escapeHtml(dish.culturalNote)}</span>
           </div>` : ''}
         `;
+        // [IMP-18D-2] 음식 카드마다 독립된 지식 DB 영역(여러 음식 결과가 섞이지 않음)
+        const knowledgeEl = document.createElement('div');
+        card.appendChild(knowledgeEl);
+        knowledgeEntries.push({ dish, el: knowledgeEl, dishKey: `${knowledgeRenderToken}:${dishIndex}` });
         listContainer.appendChild(card);
       });
+      applyKnowledgeReports(knowledgeRenderToken, knowledgeEntries, 'ai_scan', overall.safetyState === 'green' ? bannerDesc : null);
 
       // Show the multi-dish list, hide the single-dish detail view
       document.getElementById('single-dish-details').classList.add('hidden');
@@ -3825,6 +4291,13 @@
       // (지도 데모 음식 스캔과 실제 AI 스캔의 표시 문구도 이제 일치함).
       document.getElementById('spec-val-spicy').innerText = getSpicyDisplayLabel(matchObj.spicy);
 
+      // [IMP-18D-2] 지도 데모 음식도 같은 지식 DB 조회를 하되, 출처를
+      // 'demo_location'으로 구분한다(데모 식재료 목록 ≠ AI 추정 ≠ 매장 확인).
+      const knowledgeRenderToken = ++state.knowledgeRenderToken;
+      applyKnowledgeReports(knowledgeRenderToken,
+        [{ dish: matchObj, el: document.getElementById('single-dish-knowledge'), dishKey: `${knowledgeRenderToken}:0` }],
+        'demo_location', safetyState === 'green' ? bannerDesc : null);
+
       // Dietary Flags badges
       const flagsContainer = document.getElementById('spec-dietary-flags');
       flagsContainer.innerHTML = '';
@@ -3881,6 +4354,8 @@
       state.isRealPhotoUpload = false;
       state.uploadedImageDataUrl = null;
       state.hasScannedResult = false;
+      state.knowledgeRenderToken += 1; // [IMP-18D-2] 대기 중인 지식 DB 지연 갱신 무효화
+      state.lastKnowledgeReports = [];
     }
 
     // Clear the saved profile and return to the very first onboarding screen.

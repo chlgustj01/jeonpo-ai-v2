@@ -134,6 +134,15 @@ function loadApp(htmlPath, options = {}) {
     vm.runInContext(schemaCode, context, { filename: schemaPath });
   }
 
+  // [IMP-18D-2] 실제 <head> 순서 그대로 shared/food-knowledge.js도 먼저 로드한다.
+  // options.skipFoodKnowledge: true로 "모듈 로드 실패" 상황을 재현할 수 있다.
+  if (!options.skipFoodKnowledge) {
+    const path = require('path');
+    const fkPath = path.join(path.dirname(htmlPath), 'shared', 'food-knowledge.js');
+    const fkCode = fs.readFileSync(fkPath, 'utf8');
+    vm.runInContext(fkCode, context, { filename: fkPath });
+  }
+
   vm.runInContext(code, context, { filename: htmlPath });
 
   return { context, localStorageStub };
