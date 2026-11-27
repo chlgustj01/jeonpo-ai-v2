@@ -48,6 +48,8 @@ py -m unittest tests.test_food_knowledge                   # 식품 지식 ETL
 py scripts/validate_food_knowledge.py                      # Master DB 검증
 ```
 
+실제 메뉴판 사진 1장 확인: `node scripts/verify-real-menu.cjs <사진.jpg> --currency USD`(실행 중인 백엔드로 분석 1회).
+
 실제 Gemini를 호출하는 E2E는 기본적으로 건너뜁니다. 실행하려면 `REAL_GEMINI=1`을 지정하세요(호출 비용 발생). 결과는 [docs/TEST-REPORT.md](docs/TEST-REPORT.md)에 있습니다.
 
 ## 배포
@@ -60,6 +62,8 @@ py scripts/validate_food_knowledge.py                      # Master DB 검증
 |---|---|
 | "분석 서비스 설정에 문제" | `GEMINI_API_KEY` 누락 또는 무효, 모델 접근 불가. 서버 로그의 `[analyze-menu] AI_CONFIG` 줄에서 상태와 사유를 확인 |
 | "요청이 많아 잠시 처리할 수 없음" | Gemini 쿼터 초과(429). 잠시 후 다시 시도 |
+| "오늘 무료 AI 분석 한도에 도달" | 무료 등급 일일 요청 한도 초과. 표시된 시간 이후 다시 분석(그 전에는 서버가 Gemini를 호출하지 않음). 지도·환율·프로필·리뷰는 계속 사용 가능 |
+| "짧은 시간에 분석 요청이 많았습니다" / "AI 처리량" | 분당 요청·토큰 한도. 버튼에 표시된 시간 이후 다시 시도 |
 | "한 번에 분석하기에는 항목이 너무 많음" | 응답이 출력 한도에서 잘림. 메뉴판 일부만 찍어 다시 시도 |
 | "음식이나 메뉴 항목을 찾지 못함" | 음식과 무관한 사진이거나 글자를 읽을 수 없는 사진 |
 | 화면 하단 "기술 정보" | 개발자용 오류 코드(`AI_QUOTA · HTTP 429` 등). 서버 로그와 함께 확인 |

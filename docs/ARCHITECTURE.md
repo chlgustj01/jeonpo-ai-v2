@@ -43,6 +43,8 @@
 
 서버 오류 응답은 `{ error: 개발자 메시지, code, retryable }` 형식이다. 코드 목록과 HTTP 상태는 `shared/gemini-client.js`의 `ERROR_CODES`와 docs/devlog/PACKAGE-05.md §4.2에 있다. 프론트(`web/src/services/api.ts`)는 code를 6개 언어 문구로 바꾸고, `retryable`일 때만 "다시 시도"를 보여 준다. `code`가 없는 구버전 응답은 HTTP 상태로 추정한다.
 
+사용량 한도(429)는 오류 상세의 `quotaId`로 `AI_QUOTA_DAILY` / `AI_QUOTA_MINUTE` / `AI_QUOTA_TOKENS`로 나눈다. 재시도 가능 시간(`RetryInfo` 또는 `Retry-After`)은 `retryAfterSeconds`로 전달한다. 일일 한도가 확인되면 서버(`shared/gemini-client.js`의 `quotaGate`)가 그 시각까지 Gemini를 호출하지 않고 바로 응답한다. 캐시 조회는 이 차단보다 먼저 이루어진다.
+
 위험도 상태와 분석 실패는 서로 다른 축이다. 분석이 실패하면 결과 자체를 표시하지 않는다(ERROR 배너가 아니라 오류 안내). 결과가 있을 때의 UNKNOWN/ERROR는 개별 필드 불확실성을 뜻하며, 기존 RED/ORANGE 경고를 덮지 않는다(IMP-03/15).
 
 ## 4. 정보 출처 구분
