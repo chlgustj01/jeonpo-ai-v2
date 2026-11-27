@@ -1,0 +1,453 @@
+{
+  "schemaVersion": "1.1.0",
+  "dishes": [
+    {
+      "foodId": "spicyfishroestew",
+      "name": "Spicy Fish Roe Stew (알찌개)",
+      "nameKo": "알찌개",
+      "nameEn": "Spicy Fish Roe Stew",
+      "ingredients": "Fish roe, tofu, vegetables, spicy broth",
+      "allergens": [
+        "fish",
+        "soybean"
+      ],
+      "allergensUnknownIds": [],
+      "allergensDuplicateIds": [],
+      "crossContactAllergens": [],
+      "crossContactAllergensUnknownIds": [],
+      "crossContactAllergensDuplicateIds": [],
+      "spicy": 2,
+      "spicyStatus": "valid",
+      "eatingMethod": [
+        "Serve hot in a bowl",
+        "Eat with rice and side dishes"
+      ],
+      "description": "A hearty and spicy Korean stew made with fish roe, tofu, and various vegetables.",
+      "culturalNote": "Fish roe stew is known for its unique texture and rich, spicy flavor, often enjoyed during colder months.",
+      "fieldStatus": {
+        "ingredients": "valid",
+        "allergens": "valid",
+        "crossContactAllergens": "empty",
+        "spicy": "valid",
+        "eatingMethod": "valid",
+        "description": "valid",
+        "culturalNote": "valid"
+      },
+      "dishValidationStatus": "valid",
+      "price": {
+        "status": "exact",
+        "amount": 24.99,
+        "min": null,
+        "max": null,
+        "currency": "USD",
+        "text": "$24.99",
+        "source": "menu_text"
+      },
+      "ingredientSource": "inferred"
+    },
+    {
+      "foodId": "driedpollocksoup",
+      "name": "Dried Pollock Soup (황태국)",
+      "nameKo": "황태국",
+      "nameEn": "Dried Pollock Soup",
+      "ingredients": "Dried pollock, egg, tofu, bean sprouts, clear broth",
+      "allergens": [
+        "fish",
+        "egg",
+        "soybean"
+      ],
+      "allergensUnknownIds": [],
+      "allergensDuplicateIds": [],
+      "crossContactAllergens": [],
+      "crossContactAllergensUnknownIds": [],
+      "crossContactAllergensDuplicateIds": [],
+      "spicy": 0,
+      "spicyStatus": "valid",
+      "eatingMethod": [
+        "Serve hot in a bowl",
+        "Eat with rice and side dishes"
+      ],
+      "description": "A mild and savory soup made with dried pollock, known for its rehydrating and hangover-curing properties.",
+      "culturalNote": "Often served as a breakfast soup or a remedy for hangovers due to its light, nourishing broth.",
+      "fieldStatus": {
+        "ingredients": "valid",
+        "allergens": "valid",
+        "crossContactAllergens": "empty",
+        "spicy": "valid",
+        "eatingMethod": "valid",
+        "description": "valid",
+        "culturalNote": "valid"
+      },
+      "dishValidationStatus": "valid",
+      "price": {
+        "status": "exact",
+        "amount": 19.99,
+        "min": null,
+        "max": null,
+        "currency": "USD",
+        "text": "$19.99",
+        "source": "menu_text"
+      },
+      "ingredientSource": "inferred"
+    },
+    {
+      "foodId": "abaloneseaweedsoup",
+      "name": "Abalone Seaweed Soup (전복미역국)",
+      "nameKo": "전복미역국",
+      "nameEn": "Abalone Seaweed Soup",
+      "ingredients": "Abalone, seaweed, clear broth",
+      "allergens": [
+        "shellfish"
+      ],
+      "allergensUnknownIds": [],
+      "allergensDuplicateIds": [],
+      "crossContactAllergens": [],
+      "crossContactAllergensUnknownIds": [],
+      "crossContactAllergensDuplicateIds": [],
+      "spicy": 0,
+      "spicyStatus": "valid",
+      "eatingMethod": [
+        "Serve hot in a bowl",
+        "Eat with rice"
+      ],
+      "description": "A nutritious and savory soup made with abalone and seaweed, known for its rich flavor.",
+      "culturalNote": "Seaweed soup is traditionally eaten on birthdays in Korea, symbolizing health and longevity.",
+      "fieldStatus": {
+        "ingredients": "valid",
+        "allergens": "valid",
+        "crossContactAllergens": "empty",
+        "spicy": "valid",
+        "eatingMethod": "valid",
+        "description": "valid",
+        "culturalNote": "valid"
+      },
+      "dishValidationStatus": "valid",
+      "price": {
+        "status": "exact",
+        "amount": 26.99,
+        "min": null,
+        "max": null,
+        "currency": "USD",
+        "text": "$26.99",
+        "source": "menu_text"
+      },
+      "ingredientSource": "inferred"
+    },
+    {
+      "foodId": "seaurchinseaweedsoup",
+      "name": "Sea Urchin Seaweed Soup (성게미역국)",
+      "nameKo": "성게미역국",
+      "nameEn": "Sea Urchin Seaweed Soup",
+      "ingredients": "Sea urchin, seaweed, clear broth",
+      "allergens": [
+        "shellfish"
+      ],
+      "allergensUnknownIds": [],
+      "allergensDuplicateIds": [],
+      "crossContactAllergens": [],
+      "crossContactAllergensUnknownIds": [],
+      "crossContactAllergensDuplicateIds": [],
+      "spicy": 0,
+      "spicyStatus": "valid",
+      "eatingMethod": [
+        "Serve hot in a bowl",
+        "Eat with rice"
+      ],
+      "description": "A delicate and savory soup made with sea urchin and seaweed, offering a taste of the sea.",
+      "culturalNote": "This gourmet seaweed soup is a regional specialty, particularly enjoyed in coastal areas of Korea.",
+      "fieldStatus": {
+        "ingredients": "valid",
+        "allergens": "valid",
+        "crossContactAllergens": "empty",
+        "spicy": "valid",
+        "eatingMethod": "valid",
+        "description": "valid",
+        "culturalNote": "valid"
+      },
+      "dishValidationStatus": "valid",
+      "price": {
+        "status": "exact",
+        "amount": 29.99,
+        "min": null,
+        "max": null,
+        "currency": "USD",
+        "text": "$29.99",
+        "source": "menu_text"
+      },
+      "ingredientSource": "inferred"
+    },
+    {
+      "foodId": "perillaseedseaweedsoup",
+      "name": "Perilla Seed Seaweed Soup (들깨미역국)",
+      "nameKo": "들깨미역국",
+      "nameEn": "Perilla Seed Seaweed Soup",
+      "ingredients": "Seaweed, perilla seeds, clear broth",
+      "allergens": [
+        "sesame"
+      ],
+      "allergensUnknownIds": [],
+      "allergensDuplicateIds": [],
+      "crossContactAllergens": [],
+      "crossContactAllergensUnknownIds": [],
+      "crossContactAllergensDuplicateIds": [],
+      "spicy": 0,
+      "spicyStatus": "valid",
+      "eatingMethod": [
+        "Serve hot in a bowl",
+        "Eat with rice"
+      ],
+      "description": "A comforting seaweed soup enriched with ground perilla seeds, providing a nutty and creamy flavor.",
+      "culturalNote": "Perilla seeds are highly nutritious and commonly used in Korean cuisine to add depth and a unique aroma to dishes.",
+      "fieldStatus": {
+        "ingredients": "valid",
+        "allergens": "valid",
+        "crossContactAllergens": "empty",
+        "spicy": "valid",
+        "eatingMethod": "valid",
+        "description": "valid",
+        "culturalNote": "valid"
+      },
+      "dishValidationStatus": "valid",
+      "price": {
+        "status": "exact",
+        "amount": 18.99,
+        "min": null,
+        "max": null,
+        "currency": "USD",
+        "text": "$18.99",
+        "source": "menu_text"
+      },
+      "ingredientSource": "inferred"
+    },
+    {
+      "foodId": "tofuporkstew",
+      "name": "Tofu & Pork Stew (두부찌개 (돼지고기))",
+      "nameKo": "두부찌개 (돼지고기)",
+      "nameEn": "Tofu & Pork Stew",
+      "ingredients": "Tofu, pork, vegetables, spicy broth",
+      "allergens": [
+        "soybean",
+        "pork"
+      ],
+      "allergensUnknownIds": [],
+      "allergensDuplicateIds": [],
+      "crossContactAllergens": [],
+      "crossContactAllergensUnknownIds": [],
+      "crossContactAllergensDuplicateIds": [],
+      "spicy": 2,
+      "spicyStatus": "valid",
+      "eatingMethod": [
+        "Serve hot in a bowl",
+        "Eat with rice and side dishes"
+      ],
+      "description": "A flavorful and spicy stew featuring soft tofu and tender pork.",
+      "culturalNote": "Tofu stews are a staple in Korean cuisine, often customized with various proteins and vegetables.",
+      "fieldStatus": {
+        "ingredients": "valid",
+        "allergens": "valid",
+        "crossContactAllergens": "empty",
+        "spicy": "valid",
+        "eatingMethod": "valid",
+        "description": "valid",
+        "culturalNote": "valid"
+      },
+      "dishValidationStatus": "valid",
+      "price": {
+        "status": "exact",
+        "amount": 19.99,
+        "min": null,
+        "max": null,
+        "currency": "USD",
+        "text": "$19.99",
+        "source": "menu_text"
+      },
+      "ingredientSource": "inferred"
+    },
+    {
+      "foodId": "spicytofustewfortwo",
+      "name": "Spicy Tofu Stew for Two (두부파글이 (2인))",
+      "nameKo": "두부파글이 (2인)",
+      "nameEn": "Spicy Tofu Stew for Two",
+      "ingredients": "Soft tofu, pork, vegetables, spicy broth",
+      "allergens": [
+        "soybean",
+        "pork"
+      ],
+      "allergensUnknownIds": [],
+      "allergensDuplicateIds": [],
+      "crossContactAllergens": [],
+      "crossContactAllergensUnknownIds": [],
+      "crossContactAllergensDuplicateIds": [],
+      "spicy": 2,
+      "spicyStatus": "valid",
+      "eatingMethod": [
+        "Serve communal pot hot",
+        "Share with a companion and eat with rice"
+      ],
+      "description": "A large portion of spicy soft tofu stew, perfect for sharing between two people.",
+      "culturalNote": "Communal stews are a popular dining experience in Korea, fostering shared meals and conversation.",
+      "fieldStatus": {
+        "ingredients": "valid",
+        "allergens": "valid",
+        "crossContactAllergens": "empty",
+        "spicy": "valid",
+        "eatingMethod": "valid",
+        "description": "valid",
+        "culturalNote": "valid"
+      },
+      "dishValidationStatus": "valid",
+      "price": {
+        "status": "exact",
+        "amount": 34.99,
+        "min": null,
+        "max": null,
+        "currency": "USD",
+        "text": "$34.99",
+        "source": "menu_text"
+      },
+      "ingredientSource": "inferred"
+    },
+    {
+      "foodId": "tofumushroomhotpotfortwo",
+      "name": "Tofu & Mushroom Hot Pot for Two (두부버섯전골 (2인))",
+      "nameKo": "두부버섯전골 (2인)",
+      "nameEn": "Tofu & Mushroom Hot Pot for Two",
+      "ingredients": "Tofu, various mushrooms, vegetables, broth",
+      "allergens": [
+        "soybean"
+      ],
+      "allergensUnknownIds": [],
+      "allergensDuplicateIds": [],
+      "crossContactAllergens": [],
+      "crossContactAllergensUnknownIds": [],
+      "crossContactAllergensDuplicateIds": [],
+      "spicy": 0,
+      "spicyStatus": "valid",
+      "eatingMethod": [
+        "Serve communal pot hot",
+        "Share with a companion and eat with rice"
+      ],
+      "description": "A savory and comforting hot pot with tofu and an assortment of fresh mushrooms, designed for two.",
+      "culturalNote": "Hot pots are a classic Korean meal, especially popular during colder weather, offering a customizable and interactive dining experience.",
+      "fieldStatus": {
+        "ingredients": "valid",
+        "allergens": "valid",
+        "crossContactAllergens": "empty",
+        "spicy": "valid",
+        "eatingMethod": "valid",
+        "description": "valid",
+        "culturalNote": "valid"
+      },
+      "dishValidationStatus": "valid",
+      "price": {
+        "status": "exact",
+        "amount": 39.99,
+        "min": null,
+        "max": null,
+        "currency": "USD",
+        "text": "$39.99",
+        "source": "menu_text"
+      },
+      "ingredientSource": "inferred"
+    },
+    {
+      "foodId": "spicybeefvegetablesoup",
+      "name": "Spicy Beef & Vegetable Soup (육개장)",
+      "nameKo": "육개장",
+      "nameEn": "Spicy Beef & Vegetable Soup",
+      "ingredients": "Shredded beef,고사리 (fernbrake), 숙주나물 (bean sprouts), 토란대 (taro stem), scallions, egg, spicy broth",
+      "allergens": [
+        "beef",
+        "egg",
+        "soybean"
+      ],
+      "allergensUnknownIds": [],
+      "allergensDuplicateIds": [],
+      "crossContactAllergens": [],
+      "crossContactAllergensUnknownIds": [],
+      "crossContactAllergensDuplicateIds": [],
+      "spicy": 2,
+      "spicyStatus": "valid",
+      "eatingMethod": [
+        "Serve hot in a bowl",
+        "Eat with rice and side dishes"
+      ],
+      "description": "A classic hearty and spicy Korean soup with shredded beef, various vegetables, and egg.",
+      "culturalNote": "Yukgaejang is a popular soup known for its robust, spicy flavor, often eaten for stamina or as a comfort food.",
+      "fieldStatus": {
+        "ingredients": "valid",
+        "allergens": "valid",
+        "crossContactAllergens": "empty",
+        "spicy": "valid",
+        "eatingMethod": "valid",
+        "description": "valid",
+        "culturalNote": "valid"
+      },
+      "dishValidationStatus": "valid",
+      "price": {
+        "status": "exact",
+        "amount": 19.99,
+        "min": null,
+        "max": null,
+        "currency": "USD",
+        "text": "$19.99",
+        "source": "menu_text"
+      },
+      "ingredientSource": "inferred"
+    },
+    {
+      "foodId": "kimchistew",
+      "name": "Kimchi Stew (김치찌개)",
+      "nameKo": "김치찌개",
+      "nameEn": "Kimchi Stew",
+      "ingredients": "Kimchi, pork, tofu, scallions, spicy broth",
+      "allergens": [
+        "pork",
+        "soybean"
+      ],
+      "allergensUnknownIds": [],
+      "allergensDuplicateIds": [],
+      "crossContactAllergens": [],
+      "crossContactAllergensUnknownIds": [],
+      "crossContactAllergensDuplicateIds": [],
+      "spicy": 2,
+      "spicyStatus": "valid",
+      "eatingMethod": [
+        "Serve hot in a bowl",
+        "Eat with rice and side dishes"
+      ],
+      "description": "A quintessential Korean stew made with fermented kimchi, pork, and tofu, known for its spicy and tangy flavor.",
+      "culturalNote": "Kimchi Jjigae is one of Korea's most beloved and iconic dishes, a staple in almost every Korean household and restaurant.",
+      "fieldStatus": {
+        "ingredients": "valid",
+        "allergens": "valid",
+        "crossContactAllergens": "empty",
+        "spicy": "valid",
+        "eatingMethod": "valid",
+        "description": "valid",
+        "culturalNote": "valid"
+      },
+      "dishValidationStatus": "valid",
+      "price": {
+        "status": "exact",
+        "amount": 19.99,
+        "min": null,
+        "max": null,
+        "currency": "USD",
+        "text": "$19.99",
+        "source": "menu_text"
+      },
+      "ingredientSource": "inferred"
+    }
+  ],
+  "validationStatus": "valid",
+  "validationIssues": [],
+  "rejectedDishCount": 0,
+  "coverage": {
+    "returnedCount": 10,
+    "visibleItemCount": 30,
+    "maxDishes": 10,
+    "isComplete": false
+  },
+  "analysisId": "155af58c3001330f48072afdf2affe7a8c1ab97d9c51c7ea30a6810207778242"
+}

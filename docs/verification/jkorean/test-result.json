@@ -1,0 +1,43 @@
+{
+  "test": "Second real menu verification — J Korean Restaurant",
+  "date": "2026-11-28",
+  "input": {
+    "image": "third-party menu photo (not in this repository — redistribution rights unclear)",
+    "resolution": "387x516 px",
+    "fileSize": "36,646 bytes (JPEG)",
+    "menuItemsOnImage": 29,
+    "printedCurrency": "USD"
+  },
+  "conditions": {
+    "app": "React production build (vite preview :4175) -> WSL dev-server.js :3000 -> Gemini gemini-2.5-flash",
+    "viewport": "390x844 mobile emulation (Chromium, Playwright)",
+    "profile": { "allergies": ["shellfish"], "nationality": "USA", "spiceLevel": "Normal", "uiLanguage": "en" }
+  },
+  "results": {
+    "returnedDishes": 10,
+    "coverage": { "returnedCount": 10, "visibleItemCount": 30, "isComplete": false, "note": "AI estimated about 30 items; the image has 29" },
+    "pricesMatched": "10/10 (all exact, USD)",
+    "koreanNamesExact": "9/10 (두부짜글이 read as 두부파글이; English name and price correct)",
+    "riskBadges": { "Avoid": 2, "Check": 5, "No match": 3 },
+    "currency": { "default": "USD (suggested from nationality)", "jpySwitch": "all 10 dishes converted, e.g. $26.99 -> ≈ ¥4,297", "exchangeTabSynced": true },
+    "staffQuestion": { "selectedDish": "전복미역국", "ttsLang": "ko-KR", "ttsTextEqualsShown": true, "copyEqualsShown": true },
+    "sessionRestore": { "rowsRestored": 10, "selectedDishRestored": true, "currencyRestored": true, "newAnalysisCalls": 0 },
+    "consoleErrors": 0
+  },
+  "apiCalls": {
+    "geminiAnalysis": 1,
+    "geminiAnalysisOnCurrencyChange": 0,
+    "translation": 0,
+    "exchangeRate": 1
+  },
+  "limitations": [
+    "Low resolution: one Korean dish name misread (두부짜글이 -> 두부파글이)",
+    "Coverage count is the model's own estimate (30 vs 29)",
+    "Max 10 dishes per photo (19 of 29 not analyzed; the app says so)",
+    "Allergen estimate: 들깨(perilla) tagged as sesame — perilla is not sesame",
+    "Allergen estimate: 성게(sea urchin) tagged as shellfish — sea urchin is an echinoderm, not shellfish",
+    "Earlier test: 낙지(octopus) tagged as squid — no octopus allergen in the list",
+    "A menu printed in USD shows USD as the primary price; KRW is not shown when the display currency is USD"
+  ],
+  "rawResponse": "analyze-response.json (recorded /api/analyze-menu response; contains dish names, prices and AI estimates only)"
+}

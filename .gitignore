@@ -7,3 +7,6 @@ tmp-uploads/
 __pycache__/
 *.pyc
 data/generated/.build-tmp-*/
+
+# Verification inputs whose redistribution rights are unclear (third-party menu photos). Kept locally, never pushed.
+verification-private/
