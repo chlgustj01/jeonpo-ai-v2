@@ -8,7 +8,9 @@
 
 > 앱의 결과는 **AI 추정**입니다. GREEN은 "프로필과 일치하는 성분을 찾지 못함"이라는 뜻이며, 안전 보장이 아닙니다. 심한 알레르기가 있다면 반드시 직원에게 확인하세요.
 
-![음식별 위험도와 선택 음식 상세](web/screenshots/ux-improvement/after-390-E-selected-dish.png)
+![실제 메뉴판 분석 결과 — 음식별 위험도와 가격 환산](web/screenshots/final-real/final-01-result-usd.png)
+
+> **최종 검증(2026-11-28):** 실제 식당 메뉴판(15개 항목)으로 앱 전체 흐름을 확인했다. 음식명·가격 10/10 일치, 분석 범위 안내, 자동 환산과 통화 동기화, 음식별 위험도, 직원 질문·TTS, 새로고침 복원 — Gemini 호출 1회. 결과와 남은 한계는 [docs/TEST-REPORT.md §10](docs/TEST-REPORT.md)에 있다.
 
 ## 주요 기능
 
