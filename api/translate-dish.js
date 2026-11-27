@@ -143,6 +143,16 @@ module.exports = async function handler(req, res) {
   const expectedFoodIds = dishes.map((d) => d.foodId);
   const promptText = buildTranslatePrompt(dishes, LANGUAGE_NAMES[lang]);
 
+  // [QUOTA] Daily quota already spent (seen on an earlier request): answer
+  // locally instead of spending a request on a certain 429. Cached results
+  // above are still served.
+  const quotaBlocked = gemini.quotaBlock(GEMINI_MODEL);
+  if (quotaBlocked) {
+    gemini.logFailure('translate-dish', quotaBlocked);
+    gemini.sendFailure(res, quotaBlocked, 'The daily AI translation limit has been reached.');
+    return;
+  }
+
   const requestBody = {
     contents: [{ parts: [{ text: promptText }] }],
     generationConfig: gemini.buildGenerationConfig(GEMINI_MODEL, {
@@ -165,6 +175,8 @@ module.exports = async function handler(req, res) {
         maxTotalMs: TOTAL_BUDGET_MS,
         baseDelayMs: 400,
         maxDelayMs: 6000,
+        // [QUOTA] no retry on a daily quota; follow RetryInfo for minute/token quotas
+        inspectResponse: gemini.inspectRetry,
         onRetry: (attempt, delayMs, reason) => {
           console.warn(`[IMP-13] 번역 재시도 #${attempt}(${Math.round(delayMs)}ms 대기) — 사유: ${reason}`);
         },
@@ -180,7 +192,8 @@ module.exports = async function handler(req, res) {
   try {
     if (!response.ok) {
       const errText = await response.text();
-      const failure = gemini.classifyHttpFailure(response.status, errText, false);
+      const failure = gemini.classifyHttpFailure(response.status, errText, false, response.headers && response.headers.get ? response.headers.get('retry-after') : null);
+      gemini.noteQuotaFailure(GEMINI_MODEL, failure);
       gemini.logFailure('translate-dish', failure);
       gemini.sendFailure(res, failure, 'The translation request failed.');
       return;

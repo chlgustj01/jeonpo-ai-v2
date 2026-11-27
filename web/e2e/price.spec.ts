@@ -173,7 +173,9 @@ test('reload keeps prices and recomputes the conversion from the rates available
   await page.reload();
   await expect(row(page, /Kimchi Stew/)).toContainText('₩9,000');
   await expect(row(page, /Kimchi Stew/)).toContainText('≈ $8.10');
+  // Exchange-rate refresh: no Gemini analysis and no translation call.
   expect(c.analyze).toBe(1);
+  expect(c.translate).toBe(0);
 });
 
 for (const [lang, label, currencyLabel] of [

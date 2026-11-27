@@ -94,10 +94,22 @@ async function fetchWithRetry(fetchFn, options = {}) {
       lastResponse = response;
       if (attempt === maxAttempts - 1) return response; // 마지막 시도 — 포기하고 마지막 응답 그대로 반환
 
+      // [QUOTA] Optional caller hook: look at the error body (via a clone) and
+      // decide. { retry: false } stops at once (e.g. a DAILY quota — retrying
+      // the same day can only fail again); { delayMs } is the server's own
+      // retry hint (RetryInfo.retryDelay). A hint longer than the remaining
+      // budget means "give up now", not "wait less than asked".
+      let hint = null;
+      if (typeof options.inspectResponse === 'function') {
+        try { hint = await options.inspectResponse(response); } catch (e) { hint = null; }
+        if (hint && hint.retry === false) return response;
+      }
+
       const retryAfterHeader = response.headers && typeof response.headers.get === 'function'
         ? response.headers.get('retry-after')
         : null;
-      const retryAfterMs = parseRetryAfterMs(retryAfterHeader);
+      const retryAfterMs = hint && typeof hint.delayMs === 'number' ? hint.delayMs : parseRetryAfterMs(retryAfterHeader);
+      if (hint && typeof hint.delayMs === 'number' && (hint.delayMs > maxDelayMs || Date.now() - startedAt + hint.delayMs > maxTotalMs)) return response;
       const delayMs = retryAfterMs != null ? Math.min(retryAfterMs, maxDelayMs) : computeBackoffMs(attempt, baseDelayMs, maxDelayMs);
 
       if (Date.now() - startedAt + delayMs > maxTotalMs) return response; // 시간 예산 초과 — 포기

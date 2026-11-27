@@ -36,6 +36,8 @@ interface ScanState {
   errorMessage: string | null; // developer diagnostic only (shown under "Technical details")
   errorCode: ApiErrorCode | null;
   errorRetryable: boolean;
+  // [QUOTA] When the provider allows another request (epoch ms), if known.
+  errorRetryAt: number | null;
   // [Package 5] the image of the failed request, so "Try Again" can resend it (memory only)
   failedImage: string | null;
   coverage: AnalysisCoverage | null;
@@ -46,6 +48,7 @@ interface ScanState {
   isAnalyzing: boolean;
   inFlightImageHash: string | null;
   lastTranslationFailed: boolean;
+  lastTranslationErrorCode: ApiErrorCode | null;
   partialResults: boolean;
   selectedDishUid: string | null;
   locationContext: LocationContext | null;
@@ -83,7 +86,7 @@ function withUids(dishes: Dish[], analysisId: string): Dish[] {
   return dishes.map((d, i) => ({ ...d, uid: `${analysisId}#${i}` }));
 }
 
-const CLEARED_ERROR = { errorMessage: null, errorCode: null, errorRetryable: false, failedImage: null } as const;
+const CLEARED_ERROR = { errorMessage: null, errorCode: null, errorRetryable: false, errorRetryAt: null, failedImage: null } as const;
 const CLEARED_RESULT = {
   kind: null,
   displayedDishes: [] as Dish[],
@@ -92,6 +95,7 @@ const CLEARED_RESULT = {
   coverage: null,
   partialResults: false,
   lastTranslationFailed: false,
+  lastTranslationErrorCode: null,
   selectedDishUid: null,
   resultLocation: null,
   analyzedAt: null,
@@ -112,6 +116,7 @@ export const useScanStore = create<ScanState>()(
       isAnalyzing: false,
       inFlightImageHash: null,
       lastTranslationFailed: false,
+      lastTranslationErrorCode: null,
       partialResults: false,
       selectedDishUid: null,
       locationContext: null,
@@ -178,6 +183,7 @@ export const useScanStore = create<ScanState>()(
             errorCode: apiErr ? apiErr.code : 'UNKNOWN',
             errorRetryable: apiErr ? apiErr.retryable : true,
             errorMessage: apiErr ? apiErr.diagnostic : 'UNKNOWN',
+            errorRetryAt: apiErr && apiErr.retryAfterSeconds ? Date.now() + apiErr.retryAfterSeconds * 1000 : null,
             failedImage: imageBase64,
           });
         }
@@ -225,7 +231,13 @@ export const useScanStore = create<ScanState>()(
           if (get().translationAbortController !== controller) return;
           // Translation failure keeps the English original on screen (§IMP-04)
           // and is not cached, so the next language switch tries again.
-          set({ displayedDishes: analysis.canonicalDishes, displayedLang: 'en', status: 'ready', lastTranslationFailed: true });
+          set({
+            displayedDishes: analysis.canonicalDishes,
+            displayedLang: 'en',
+            status: 'ready',
+            lastTranslationFailed: true,
+            lastTranslationErrorCode: err instanceof ApiError ? err.code : null,
+          });
         }
       },
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useScanStore } from '../../store/scanStore';
 import { useUIStore } from '../../store/uiStore';
@@ -6,6 +6,7 @@ import { useT } from '../../hooks/useT';
 import { readFileAsDataUrl, resizeImageForUpload } from '../../lib/image';
 import { ERROR_MESSAGE_KEYS } from '../../services/api';
 import { formatTemplate } from '../../i18n';
+import { formatRetryTime } from '../../i18n/quotaExtra';
 import type { AnalysisCoverage } from '../../types';
 import { Button, ErrorNotice, Spinner } from '../common/ui';
 import { DishResultList } from './DishResultList';
@@ -25,13 +26,15 @@ export function ScannerView() {
   // useSyncExternalStore think the snapshot changed on every render,
   // which infinite-loops. useShallow compares the picked fields instead
   // of the wrapper object's identity.
-  const { status, displayedDishes, kind, errorMessage, errorCode, errorRetryable, coverage, lastTranslationFailed, partialResults, analyzePhoto, retryAnalysis, reset } = useScanStore(
+  const { status, displayedDishes, kind, errorMessage, errorCode, errorRetryAt, lastTranslationErrorCode, errorRetryable, coverage, lastTranslationFailed, partialResults, analyzePhoto, retryAnalysis, reset } = useScanStore(
     useShallow((s) => ({
       status: s.status,
       displayedDishes: s.displayedDishes,
       kind: s.kind,
       errorMessage: s.errorMessage,
       errorCode: s.errorCode,
+      errorRetryAt: s.errorRetryAt,
+      lastTranslationErrorCode: s.lastTranslationErrorCode,
       errorRetryable: s.errorRetryable,
       coverage: s.coverage,
       retryAnalysis: s.retryAnalysis,
@@ -77,6 +80,15 @@ export function ScannerView() {
     if (inputRef.current) inputRef.current.value = '';
   };
 
+  // [QUOTA] Seconds until retry is allowed, ticking once a second while > 0.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!errorRetryAt || errorRetryAt <= Date.now()) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [errorRetryAt]);
+  const secondsLeft = errorRetryAt ? Math.max(0, Math.ceil((errorRetryAt - now) / 1000)) : 0;
+
   // [Package 5] Results are shown only for a finished analysis — never next to an error.
   const hasResult = kind !== null && displayedDishes.length > 0 && (status === 'ready' || status === 'translating');
 
@@ -90,7 +102,11 @@ export function ScannerView() {
       {/* [Package 5] Error first, above the photo card, so it is visible without scrolling on a phone. */}
       {status === 'error' && (
         <div className="space-y-2">
-          <ErrorNotice title={t('errorTitle')} description={t(ERROR_MESSAGE_KEYS[errorCode ?? 'UNKNOWN'])} />
+          {/* [QUOTA] {time} = when the provider allows another request (relative, localized). */}
+          <ErrorNotice
+            title={t('errorTitle')}
+            description={formatTemplate(t(ERROR_MESSAGE_KEYS[errorCode ?? 'UNKNOWN']), { time: formatRetryTime(lang, secondsLeft, t('timeLater')) })}
+          />
           {errorMessage && (
             <details className="text-xs text-vintage-olive">
               <summary className="cursor-pointer min-h-[44px] inline-flex items-center">{t('errTechDetails')}</summary>
@@ -98,9 +114,10 @@ export function ScannerView() {
             </details>
           )}
           {/* Only a retry button here: choosing another photo is the card's own button just below. */}
+          {/* [QUOTA] Retry only when it can help; disabled until the provider's retry time. */}
           {errorRetryable && (
-            <Button variant="primary" onClick={() => void retryAnalysis()}>
-              {t('retryBtn')}
+            <Button variant="primary" disabled={secondsLeft > 0} onClick={() => void retryAnalysis()}>
+              {secondsLeft > 0 ? formatTemplate(t('retryAvailableIn'), { time: formatRetryTime(lang, secondsLeft, t('timeLater')) }) : t('retryBtn')}
             </Button>
           )}
         </div>
@@ -170,7 +187,7 @@ export function ScannerView() {
           )}
           {status === 'translating' && <Spinner label={t('translatingLabel')} />}
           {lastTranslationFailed && (
-            <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2" role="status">{t('toastTranslationFailed')}</p>
+            <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2" role="status">{t(lastTranslationErrorCode === 'AI_QUOTA_DAILY' ? 'translationQuotaNotice' : 'toastTranslationFailed')}</p>
           )}
           {kind === 'multi' && coverage && <CoverageNotice coverage={coverage} />}
           <DishResultList dishes={displayedDishes} source={kind === 'single' ? 'demo_location' : 'ai_scan'} partialResults={partialResults} />

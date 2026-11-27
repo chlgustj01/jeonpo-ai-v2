@@ -199,6 +199,16 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  // [QUOTA] Daily quota already spent (seen on an earlier request): answer
+  // locally instead of spending a request on a certain 429. Cached results
+  // above are still served.
+  const quotaBlocked = gemini.quotaBlock(GEMINI_MODEL);
+  if (quotaBlocked) {
+    gemini.logFailure('analyze-menu', quotaBlocked);
+    gemini.sendFailure(res, quotaBlocked, 'The daily AI analysis limit has been reached.');
+    return;
+  }
+
   const requestBody = {
     contents: [
       {
@@ -231,6 +241,8 @@ module.exports = async function handler(req, res) {
         maxTotalMs: TOTAL_BUDGET_MS,
         baseDelayMs: 500,
         maxDelayMs: 8000,
+        // [QUOTA] no retry on a daily quota; follow RetryInfo for minute/token quotas
+        inspectResponse: gemini.inspectRetry,
         onRetry: (attempt, delayMs, reason) => {
           console.warn(`[IMP-13] Gemini 이미지 분석 재시도 #${attempt}(${Math.round(delayMs)}ms 대기) — 사유: ${reason}`);
         },
@@ -246,7 +258,8 @@ module.exports = async function handler(req, res) {
   try {
     if (!response.ok) {
       const errText = await response.text();
-      const failure = gemini.classifyHttpFailure(response.status, errText, true);
+      const failure = gemini.classifyHttpFailure(response.status, errText, true, response.headers && response.headers.get ? response.headers.get('retry-after') : null);
+      gemini.noteQuotaFailure(GEMINI_MODEL, failure);
       gemini.logFailure('analyze-menu', failure);
       gemini.sendFailure(res, failure, `The AI provider request failed (${failure.code}).`);
       return;

@@ -12,6 +12,9 @@ import type { AnalyzeMenuResponse, Dish, Lang, TranslateDishResponse } from '../
 export type ApiErrorCode =
   | 'AI_CONFIG'
   | 'AI_QUOTA'
+  | 'AI_QUOTA_DAILY'
+  | 'AI_QUOTA_MINUTE'
+  | 'AI_QUOTA_TOKENS'
   | 'AI_UNAVAILABLE'
   | 'AI_TIMEOUT'
   | 'AI_NETWORK'
@@ -25,7 +28,7 @@ export type ApiErrorCode =
   | 'UNKNOWN';
 
 const KNOWN_CODES: ReadonlySet<string> = new Set<ApiErrorCode>([
-  'AI_CONFIG', 'AI_QUOTA', 'AI_UNAVAILABLE', 'AI_TIMEOUT', 'AI_NETWORK', 'IMAGE_INVALID', 'IMAGE_TOO_LARGE',
+  'AI_CONFIG', 'AI_QUOTA', 'AI_QUOTA_DAILY', 'AI_QUOTA_MINUTE', 'AI_QUOTA_TOKENS', 'AI_UNAVAILABLE', 'AI_TIMEOUT', 'AI_NETWORK', 'IMAGE_INVALID', 'IMAGE_TOO_LARGE',
   'AI_RESPONSE_INVALID', 'AI_OUTPUT_TRUNCATED', 'AI_BLOCKED', 'NETWORK', 'NO_FOOD_FOUND', 'UNKNOWN',
 ]);
 
@@ -33,6 +36,9 @@ const KNOWN_CODES: ReadonlySet<string> = new Set<ApiErrorCode>([
 export const ERROR_MESSAGE_KEYS: Record<ApiErrorCode, string> = {
   AI_CONFIG: 'errAiConfig',
   AI_QUOTA: 'errAiQuota',
+  AI_QUOTA_DAILY: 'errAiQuotaDaily',
+  AI_QUOTA_MINUTE: 'errAiQuotaMinute',
+  AI_QUOTA_TOKENS: 'errAiQuotaTokens',
   AI_UNAVAILABLE: 'errAiUnavailable',
   AI_TIMEOUT: 'errAiTimeout',
   AI_NETWORK: 'errAiUnavailable',
@@ -60,8 +66,11 @@ export class ApiError extends Error {
   readonly code: ApiErrorCode;
   readonly retryable: boolean;
   readonly httpStatus: number | null;
-  constructor(code: ApiErrorCode, retryable: boolean, httpStatus: number | null, devMessage: string) {
+  // [QUOTA] Seconds until the provider allows another request (if known).
+  readonly retryAfterSeconds: number | null;
+  constructor(code: ApiErrorCode, retryable: boolean, httpStatus: number | null, devMessage: string, retryAfterSeconds: number | null = null) {
     super(devMessage);
+    this.retryAfterSeconds = retryAfterSeconds;
     this.name = 'ApiError';
     this.code = code;
     this.retryable = retryable;
@@ -89,11 +98,19 @@ async function postJson(url: string, body: unknown, signal: AbortSignal, ErrorCl
     throw new ErrorClass('NETWORK', true, null, `${url} unreachable`);
   }
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { code?: unknown; retryable?: unknown } | null;
+    const payload = (await response.json().catch(() => null)) as { code?: unknown; retryable?: unknown; retryAfterSeconds?: unknown } | null;
     const fallback = codeFromHttpStatus(response.status);
     const code = payload && typeof payload.code === 'string' && KNOWN_CODES.has(payload.code) ? (payload.code as ApiErrorCode) : fallback.code;
     const retryable = payload && typeof payload.retryable === 'boolean' ? payload.retryable : fallback.retryable;
-    throw new ErrorClass(code, retryable, response.status, `${url} failed: ${response.status}`);
+    // [QUOTA] Retry time: body field, else the standard Retry-After header (seconds).
+    const header = response.headers.get('retry-after');
+    const retryAfterSeconds =
+      payload && typeof payload.retryAfterSeconds === 'number' && payload.retryAfterSeconds > 0
+        ? payload.retryAfterSeconds
+        : header && /^\d+$/.test(header.trim())
+          ? Number(header)
+          : null;
+    throw new ErrorClass(code, retryable, response.status, `${url} failed: ${response.status}`, retryAfterSeconds);
   }
   try {
     return await response.json();

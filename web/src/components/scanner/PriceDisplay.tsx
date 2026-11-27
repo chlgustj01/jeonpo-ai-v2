@@ -71,7 +71,7 @@ export function PriceDetail({ price }: { price: DishPrice | undefined }) {
   const v = describePrice(price, lang, currency, krwPerUnit);
   if (v.kind === 'ambiguous') return <p className="text-sm text-vintage-dark">💳 {formatTemplate(t('priceAmbiguous'), { text: v.primary })}</p>;
   return (
-    <div className="flex items-baseline gap-2 flex-wrap">
+    <div className="flex items-baseline gap-2 flex-wrap" data-testid="dish-price-detail">
       <span className="text-[11px] font-bold text-vintage-olive uppercase">💳 {t('priceFromMenu')}</span>
       <span className="text-base font-bold text-vintage-dark tabular-nums">{v.primary}</span>
       {v.converted && <span className="text-sm text-vintage-olive tabular-nums">{v.converted}</span>}
